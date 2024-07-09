@@ -2,7 +2,6 @@ import io
 import os
 import sys
 import imageio
-import joblib
 import numpy as np
 import matplotlib.pyplot as plt
 from flask import Flask, jsonify, request, render_template, send_file, redirect, url_for
@@ -18,14 +17,12 @@ from UNET import specificity
 from UNET import UNet
 from H5 import load_hdf5_file
 from moviepy.editor import ImageSequenceClip
-from transformation_nifti_file_to_h5 import transform_and_predict
 app = Flask(__name__)
 
 sys.stdin.reconfigure(encoding='utf-8')
 sys.stdout.reconfigure(encoding='utf-8')
 # Define las funciones de métricas personalizadas
-# Cargar el pipeline y el modelo# Directorio temporal para archivos cargados
-TEMP_DIR = 'temp/'
+
 # Crear el modelo y cargar los pesos
 IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS = 128, 128, 128, 4
 num_classes = 4
@@ -45,8 +42,8 @@ def index():
 # Ruta para manejar la predicción
 @app.route('/predict', methods=['POST'])
 def predict():
-    if not os.path.exists(TEMP_DIR):
-        os.makedirs(TEMP_DIR)
+    if not model_loaded:
+        return "Error al cargar el modelo."
 
     try:
         # Asegurarse de que se envió un archivo
@@ -54,19 +51,55 @@ def predict():
             return "No se envió ningún archivo."
 
         file = request.files['file']
-        file_path = os.path.join(TEMP_DIR, "temp_file.h5")
+        file_path = "temp_file.h5"
         file.save(file_path)
 
-        # Ejecutar el pipeline y realizar la predicción
-        video_filename = transform_and_predict(file_path, TEMP_DIR)
+        # Cargar la imagen y realizar la predicción
+        test_img, _ = load_hdf5_file(file_path)
+        if test_img is None:
+            return "Error al cargar el archivo HDF5."
 
-        if video_filename:
-            # Redirigir a la página de resultados
-            return redirect(url_for('result', video_filename=os.path.basename(video_filename)))
+        test_img_input = np.expand_dims(test_img, axis=0)
+        test_prediction = model.predict(test_img_input)
+        test_prediction_argmax = np.argmax(test_prediction, axis=4)[0, :, :, :]
 
-        return "Error durante la predicción."
+        # Crear una lista para almacenar las imágenes del video
+        images = []
+
+        # Generar imágenes para cada slice y agregarlas a images
+        for i in range(test_prediction_argmax.shape[2]):
+            fig, ax = plt.subplots(1, 2, figsize=(12, 8))
+
+            ax[0].imshow(test_img[:, :, i, 1], cmap='gray')
+            ax[0].title.set_text('Testing Image')
+
+            ax[1].imshow(test_prediction_argmax[:, :, i])
+            ax[1].title.set_text('Prediction on test image')
+
+            # Guardar la figura en un buffer de bytes
+            fig.canvas.draw()
+            image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
+            image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+
+            # Cerrar la figura para liberar memoria
+            plt.close(fig)
+
+            # Agregar la imagen al arreglo de imágenes
+            images.append(image)
+
+        # Crear un clip de video con las imágenes
+        video_filename = "static/temp_video.mp4"
+        clip = ImageSequenceClip(images, fps=1)
+        clip.write_videofile(video_filename, codec='libx264', audio=False)
+
+        # Eliminar archivos temporales
+        os.remove(file_path)
+
+        # Redirigir a la página de resultados
+        return redirect(url_for('result', video_filename="temp_video.mp4"))
 
     except Exception as e:
+        # Imprimir el error por consola
         print("Error durante la predicción:", str(e))
         return "Error durante la predicción. Consulta los registros del servidor para más detalles."
 
