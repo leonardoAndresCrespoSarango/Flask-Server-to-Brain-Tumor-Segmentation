@@ -9,8 +9,8 @@
 <body>
     <h1>Brain Tumor Prediction</h1>
     <form action="/predict" method="post" enctype="multipart/form-data">
-        <label for="file">Selecciona un archivo .npy:</label>
-        <input type="file" id="file" name="file" accept=".h5">
+        <label for="folder">Selecciona una carpeta con archivos NIfTI:</label>
+        <input type="file" id="folder" name="folder" webkitdirectory directory multiple accept=".nii,.nii.gz">
         <br><br>
         <input type="submit" value="Predecir">
     </form>
