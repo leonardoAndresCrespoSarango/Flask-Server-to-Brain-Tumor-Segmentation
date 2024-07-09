@@ -21,9 +21,6 @@ app = Flask(__name__)
 
 sys.stdin.reconfigure(encoding='utf-8')
 sys.stdout.reconfigure(encoding='utf-8')
-# Define las funciones de métricas personalizadas
-
-# Crear el modelo y cargar los pesos
 IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS = 128, 128, 128, 4
 num_classes = 4
 
