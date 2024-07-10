@@ -26,7 +26,7 @@ from moviepy.editor import ImageSequenceClip
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads/'
-
+path="uploads/"
 
 sys.stdin.reconfigure(encoding='utf-8')
 sys.stdout.reconfigure(encoding='utf-8')
@@ -52,16 +52,24 @@ def predict():
         return "Error al cargar el modelo."
 
     try:
-        # Asegurarse de que se envió un archivo
-        if 'file' not in request.files:
-            return "No se envió ningún archivo."
+        # Especificar la ruta de la carpeta que contiene los archivos HDF5
+        folder_path = "processed_files/"  # Cambia esto a la ruta de tu carpeta
 
-        file = request.files['file']
-        file_path = "temp_file.h5"
-        file.save(file_path)
+        # Buscar cualquier archivo HDF5 en la carpeta
+        hdf5_files = glob.glob(os.path.join(folder_path, "*.h5"))
+
+        if not hdf5_files:
+            return "No se encontraron archivos HDF5 en la carpeta especificada."
+
+        # Usar el primer archivo HDF5 encontrado
+        file_path = hdf5_files[0]
+
+        # Verificar si el archivo existe (aunque esto no debería ser necesario ya que glob ya encontró el archivo)
+        if not os.path.isfile(file_path):
+            return "Archivo HDF5 no encontrado."
 
         # Cargar la imagen y realizar la predicción
-        test_img, _ = load_hdf5_file(file_path)
+        test_img= load_hdf5_file(file_path)
         if test_img is None:
             return "Error al cargar el archivo HDF5."
 
@@ -95,11 +103,8 @@ def predict():
 
         # Crear un clip de video con las imágenes
         video_filename = "static/temp_video.mp4"
-        clip = ImageSequenceClip(images, fps=1)
+        clip = ImageSequenceClip(images, fps=30)
         clip.write_videofile(video_filename, codec='libx264', audio=False)
-
-        # Eliminar archivos temporales
-        os.remove(file_path)
 
         # Redirigir a la página de resultados
         return redirect(url_for('result', video_filename="temp_video.mp4"))
@@ -108,6 +113,7 @@ def predict():
         # Imprimir el error por consola
         print("Error durante la predicción:", str(e))
         return "Error durante la predicción. Consulta los registros del servidor para más detalles."
+
 
 @app.route('/result')
 def result():
@@ -172,7 +178,7 @@ def upload_and_process_files():
         print(f"Imágenes guardadas para el paciente {img} como HDF5")
     
     # Eliminar archivos temporales
-    files_to_delete = glob.glob(os.path.join(mainPath, '*.nii.gz'))
+    files_to_delete = glob.glob(os.path.join(path, '*.nii.gz'))
     for file in files_to_delete:
         os.remove(file)
     
