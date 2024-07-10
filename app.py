@@ -3,6 +3,12 @@ import os
 import sys
 import imageio
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+from skimage.transform import resize
+import h5py
+import glob
+from werkzeug.utils import secure_filename
+import nibabel as nib
 import matplotlib.pyplot as plt
 from flask import Flask, jsonify, request, render_template, send_file, redirect, url_for
 import tensorflow as tf
@@ -17,7 +23,10 @@ from UNET import specificity
 from UNET import UNet
 from H5 import load_hdf5_file
 from moviepy.editor import ImageSequenceClip
+
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads/'
+
 
 sys.stdin.reconfigure(encoding='utf-8')
 sys.stdout.reconfigure(encoding='utf-8')
@@ -26,7 +35,7 @@ num_classes = 4
 
 try:
     model = UNet(IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS, num_classes)
-    model.load_weights('C:/Users/lcres/PycharmProjects/Flask Server Brain Tumor/model_3D/Final/modelUnet3D.h5')
+    model.load_weights('model_3D\Final\modelUnet3D.h5')
     model_loaded = True
 except Exception as e:
     model_loaded = False
@@ -106,6 +115,69 @@ def result():
     video_url = url_for('static', filename=video_filename)
     print(f"Video URL: {video_url}")
     return render_template('result.html', video_url=video_url)
+
+
+# Ruta para manejar la subida y procesamiento de archivos
+@app.route('/upload', methods=['POST'])
+def upload_and_process_files():
+    if 'files' not in request.files:
+        return 'No files part in the request.', 400
+    
+    upload_files = request.files.getlist('files')
+    
+    mainPath = app.config['UPLOAD_FOLDER']
+    for file in upload_files:
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(mainPath, filename))
+    
+    t1_path = os.path.join(mainPath, '*t1n.nii.gz')
+    t2_path = os.path.join(mainPath, '*t2W.nii.gz')
+    t1ce_path = os.path.join(mainPath, '*t1c.nii.gz')
+    flair_path = os.path.join(mainPath, '*t2f.nii.gz')
+    
+    t1_list = sorted(glob.glob(t1_path))
+    t2_list = sorted(glob.glob(t2_path))
+    t1ce_list = sorted(glob.glob(t1ce_path))
+    flair_list = sorted(glob.glob(flair_path))
+    
+    scaler = MinMaxScaler()
+    target_shape = (128, 128, 128)  # Dimensiones objetivo
+
+    output_path = 'processed_files/'
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+    for img in range(len(t1ce_list)):
+        print("Now preparing image number: ", img)
+        
+        temp_image_t1 = nib.load(t1_list[img]).get_fdata()
+        temp_image_t1 = scaler.fit_transform(temp_image_t1.reshape(-1, temp_image_t1.shape[-1])).reshape(temp_image_t1.shape)
+
+        temp_image_t2 = nib.load(t2_list[img]).get_fdata()
+        temp_image_t2 = scaler.fit_transform(temp_image_t2.reshape(-1, temp_image_t2.shape[-1])).reshape(temp_image_t2.shape)
+        
+        temp_image_t1ce = nib.load(t1ce_list[img]).get_fdata()
+        temp_image_t1ce = scaler.fit_transform(temp_image_t1ce.reshape(-1, temp_image_t1ce.shape[-1])).reshape(temp_image_t1ce.shape)
+    
+        temp_image_flair = nib.load(flair_list[img]).get_fdata()
+        temp_image_flair = scaler.fit_transform(temp_image_flair.reshape(-1, temp_image_flair.shape[-1])).reshape(temp_image_flair.shape)
+            
+        temp_combined_images = np.stack([temp_image_t1, temp_image_t1ce, temp_image_t2, temp_image_flair], axis=3)
+        
+        temp_combined_images_resized = resize(temp_combined_images, target_shape, mode='constant', anti_aliasing=True)
+        
+        with h5py.File(os.path.join(output_path, f'patient_{img}.h5'), 'w') as hf:
+            hf.create_dataset('images', data=temp_combined_images_resized, compression='gzip')
+    
+        print(f"Imágenes guardadas para el paciente {img} como HDF5")
+    
+    # Eliminar archivos temporales
+    files_to_delete = glob.glob(os.path.join(mainPath, '*.nii.gz'))
+    for file in files_to_delete:
+        os.remove(file)
+    
+    return 'Files processed and saved.', 200
+
 
 if __name__ == "__main__":
     app.run(debug=True)

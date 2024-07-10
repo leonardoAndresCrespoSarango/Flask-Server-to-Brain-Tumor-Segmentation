@@ -5,6 +5,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brain Tumor Prediction</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('form#uploadForm').submit(function(event) {
+                event.preventDefault(); // Evita el envío estándar del formulario
+                
+                var formData = new FormData($(this)[0]);
+                
+                $.ajax({
+                    url: '/upload',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        console.log(response); // Muestra el mensaje en la consola
+                    },
+                    error: function(error) {
+                        console.error('Error al procesar los archivos:', error);
+                    }
+                });
+            });
+        });
+    </script>
 </head>
 <body>
     <h1>Brain Tumor Prediction</h1>
@@ -13,6 +37,10 @@
         <input type="file" id="file" name="file" accept=".h5">
         <br><br>
         <input type="submit" value="Predecir">
+    </form>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="files" multiple>
+        <input type="submit" value="Upload">
     </form>
 </body>
 </html>
