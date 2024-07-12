@@ -1,7 +1,10 @@
 import io
 import os
+import subprocess
 import sys
 import imageio
+from pylatex import Document, Section, Subsection, Tabular, Figure, Command, Package
+from pylatex.utils import NoEscape, bold
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from skimage.transform import resize
@@ -46,30 +49,88 @@ def index():
 
 
 # Ruta para manejar la predicción
+from pylatex import Document, Section, Subsection, Tabular, Figure, Command, Package
+from pylatex.utils import NoEscape, bold
+import subprocess
+import os
+
+
+def create_medical_report(patient_info, prediagnosis, mri_images):
+    doc = Document(documentclass='article', document_options=['12pt', 'a4paper'])
+
+    # Importar el paquete float para usar la opción H
+    doc.packages.append(Package('float'))
+
+    doc.preamble.append(Command('title', 'Reporte Médico de Cáncer Cerebral'))
+    doc.preamble.append(Command('author', 'Hospital XYZ'))
+    doc.preamble.append(Command('date', NoEscape(r'\today')))
+    doc.append(NoEscape(r'\maketitle'))
+    doc.append(NoEscape(r'\newpage'))
+
+    with doc.create(Section('Información del Paciente')):
+        with doc.create(Tabular('ll')) as table:
+            table.add_row((bold('Nombre:'), patient_info['name']))
+            table.add_row((bold('Edad:'), patient_info['age']))
+            table.add_row((bold('Género:'), patient_info['gender']))
+            table.add_row((bold('ID del Paciente:'), patient_info['id']))
+
+    with doc.create(Section('Prediagnóstico')):
+        doc.append(prediagnosis)
+
+    with doc.create(Section('Diagnóstico')):
+        doc.append("Diagnóstico basado en las predicciones.")
+
+    with doc.create(Section('Imágenes de Resonancia Magnética')):
+        for image_path in mri_images:
+            image_num = int(image_path.split('_')[-1].split('.')[0])
+            if 40 <= image_num <= 100:
+                with doc.create(Figure(position='H')) as fig:
+                    fig.add_image(image_path, width=NoEscape(r'0.8\textwidth'))
+                    fig.add_caption(f'Resonancia Magnética - Slice {image_num}')
+
+    tex_file = 'reporte_medico'
+    doc.generate_tex(tex_file)
+
+    try:
+        subprocess.run(['pdflatex', tex_file], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error al compilar el documento: {e}")
+
+    # Borrar las imágenes temporales después de generar el informe
+    for image_path in mri_images:
+        try:
+            os.remove(image_path)
+        except Exception as e:
+            print(f"Error al borrar la imagen temporal {image_path}: {e}")
+
+
 @app.route('/predict', methods=['POST'])
 def predict():
     if not model_loaded:
         return "Error al cargar el modelo."
 
     try:
-        # Especificar la ruta de la carpeta que contiene los archivos HDF5
-        folder_path = "processed_files/"  # Cambia esto a la ruta de tu carpeta
+        patient_info = {
+            'name': request.form['name'],
+            'age': request.form['age'],
+            'gender': request.form['gender'],
+            'id': request.form['id']
+        }
 
-        # Buscar cualquier archivo HDF5 en la carpeta
+        prediagnosis = request.form['prediagnosis']
+
+        folder_path = "processed_files/"
         hdf5_files = glob.glob(os.path.join(folder_path, "*.h5"))
 
         if not hdf5_files:
             return "No se encontraron archivos HDF5 en la carpeta especificada."
 
-        # Usar el primer archivo HDF5 encontrado
         file_path = hdf5_files[0]
 
-        # Verificar si el archivo existe (aunque esto no debería ser necesario ya que glob ya encontró el archivo)
         if not os.path.isfile(file_path):
             return "Archivo HDF5 no encontrado."
 
-        # Cargar la imagen y realizar la predicción
-        test_img= load_hdf5_file(file_path)
+        test_img = load_hdf5_file(file_path)
         if test_img is None:
             return "Error al cargar el archivo HDF5."
 
@@ -77,10 +138,8 @@ def predict():
         test_prediction = model.predict(test_img_input)
         test_prediction_argmax = np.argmax(test_prediction, axis=4)[0, :, :, :]
 
-        # Crear una lista para almacenar las imágenes del video
         images = []
 
-        # Generar imágenes para cada slice y agregarlas a images
         for i in range(test_prediction_argmax.shape[2]):
             fig, ax = plt.subplots(1, 2, figsize=(12, 8))
 
@@ -90,27 +149,28 @@ def predict():
             ax[1].imshow(test_prediction_argmax[:, :, i])
             ax[1].title.set_text('Prediction on test image')
 
-            # Guardar la figura en un buffer de bytes
             fig.canvas.draw()
             image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
             image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
 
-            # Cerrar la figura para liberar memoria
             plt.close(fig)
 
-            # Agregar la imagen al arreglo de imágenes
             images.append(image)
 
-        # Crear un clip de video con las imágenes
+            temp_image_path = f"static/temp_image_{i}.png"
+            plt.imsave(temp_image_path, image)
+
         video_filename = "static/temp_video.mp4"
         clip = ImageSequenceClip(images, fps=30)
         clip.write_videofile(video_filename, codec='libx264', audio=False)
 
-        # Redirigir a la página de resultados
+        mri_images = [f"static/temp_image_{i}.png" for i in range(len(images))]
+
+        create_medical_report(patient_info, prediagnosis, mri_images)
+
         return redirect(url_for('result', video_filename="temp_video.mp4"))
 
     except Exception as e:
-        # Imprimir el error por consola
         print("Error durante la predicción:", str(e))
         return "Error durante la predicción. Consulta los registros del servidor para más detalles."
 
