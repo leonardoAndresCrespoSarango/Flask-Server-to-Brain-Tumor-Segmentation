@@ -2,7 +2,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Conv3D, Conv3DTranspose, Dropout, MaxPooling3D, concatenate
 import keras.backend as K
 def dice_coef(y_true, y_pred, smooth=1.0):
-    class_num = 5
+    class_num = 4
     total_loss = 0
     for i in range(class_num):
         y_true_f = K.flatten(y_true[:, :, :, i])
