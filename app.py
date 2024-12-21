@@ -70,10 +70,12 @@ def delete_file_after_delay(file_path, delay):
 def get_db_connection():
     conn = psycopg2.connect(
         dbname='postgres',
-        user='postgres.eizoqthfryjapdjlzxqx',
+        user='postgres.txfhmfkxzcwigxhzhvmx',
         password='VLNVddyd2002',
-        host='aws-0-us-east-1.pooler.supabase.com'
+        host='aws-0-us-east-1.pooler.supabase.com',
+        port='6543'
     )
+
     return conn
 # Verificar si la tabla users existe y crearla si no
 # Verificar si la tabla users existe y crearla si no
