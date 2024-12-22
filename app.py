@@ -39,7 +39,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 from graficas.graficasPloty import generate_graph1, generate_graph2, generate_graph3, generate_graph4, generate_graph5, \
-    generate_graph6
+    generate_graph6, generate_graph6_no_prediction
 from latex.plantilla import create_medical_report
 import bcrypt
 import smtplib
@@ -49,6 +49,7 @@ from reports.reportePDF import PDF
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads/'
+app.config['STATIC_FOLDER'] = 'static/'
 path = "uploads/"
 secret_key = os.urandom(24)
 print(secret_key)
@@ -1017,10 +1018,42 @@ def download_report(patient_id):
         print(f"Error al descargar el reporte: {e}")
         return jsonify({"error": "Error al descargar el reporte"}), 500
 
+#leonardo
+@app.route('/generate-graph6', methods=['POST'])
+def generate_graph6_route():
+    if 'user_id' not in session:
+        return jsonify({"message": "Usuario no autenticado"}), 401
 
+    user_id = session['user_id']
+    patient_id = request.json.get('patient_id')
 
+    if not patient_id:
+        return jsonify({'message': 'Patient ID is missing'}), 400
 
+    h5_filename = os.path.join('processed_files', f'{patient_id}.h5')
 
+    if not os.path.exists(h5_filename):
+        return jsonify({'message': f'El archivo HDF5 {h5_filename} no fue encontrado.'}), 404
+
+    try:
+        # Cargar las imágenes desde el archivo HDF5
+        test_img = load_hdf5_file(h5_filename)
+        if test_img is None:
+            return jsonify({'message': 'Error al cargar el archivo HDF5.'}), 500
+
+        # Generar la gráfica 6 (solo imágenes del paciente)
+        graph6_html = generate_graph6_no_prediction(test_img)
+
+        # Generar la URL para la gráfica
+        graph6_url = url_for('static', filename=graph6_html, _external=True)
+
+        return jsonify({
+            "html_url6": graph6_url
+        })
+
+    except Exception as e:
+        print(f"Error al generar la gráfica 6: {str(e)}")
+        return jsonify({"message": "Error al generar la gráfica 6. Consulta los registros del servidor para más detalles."}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
