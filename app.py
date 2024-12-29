@@ -142,6 +142,21 @@ def create_tables():
     );
     """)
     conn.commit()
+    # Agregar columna si no existe
+    cursor.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name='diagnostics' AND column_name='is_generated'
+            ) THEN
+                ALTER TABLE diagnostics ADD COLUMN is_generated BOOLEAN DEFAULT FALSE;
+            END IF;
+        END
+        $$;
+        """)
+    conn.commit()
     cursor.close()
     conn.close()
 
@@ -458,15 +473,16 @@ def add_diagnostic():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        # Insertar el diagnóstico con `is_generated` como True
         cursor.execute(
-            'INSERT INTO diagnostics (patient_id, user_id, title, description) VALUES (%s, %s, %s, %s)',
-            (diagnostic_info['patient_id'], user_id, diagnostic_info['title'], diagnostic_info['description'])
+            'INSERT INTO diagnostics (patient_id, user_id, title, description, is_generated) VALUES (%s, %s, %s, %s, %s)',
+            (diagnostic_info['patient_id'], user_id, diagnostic_info['title'], diagnostic_info['description'], True)
         )
         conn.commit()
         cursor.close()
         conn.close()
 
-        return jsonify({'message': 'Diagnóstico agregado exitosamente'})
+        return jsonify({'message': 'Diagnóstico agregado exitosamente y marcado como generado'})
 
     except Exception as e:
         print("Error al agregar el diagnóstico:", str(e))
@@ -570,7 +586,7 @@ def get_diagnostic(patient_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute('SELECT title, description FROM diagnostics WHERE patient_id = %s AND user_id = %s', (patient_id, session['user_id']))
+        cursor.execute('SELECT title, description,is_generated  FROM diagnostics WHERE patient_id = %s AND user_id = %s', (patient_id, session['user_id']))
         diagnostic = cursor.fetchone()
         cursor.close()
         conn.close()
@@ -1054,6 +1070,39 @@ def generate_graph6_route():
     except Exception as e:
         print(f"Error al generar la gráfica 6: {str(e)}")
         return jsonify({"message": "Error al generar la gráfica 6. Consulta los registros del servidor para más detalles."}), 500
+
+@app.route('/patients-with-diagnostics', methods=['GET'])
+def get_patients_with_diagnostics():
+    if 'user_id' not in session:
+        return jsonify({"error": "Usuario no autenticado"}), 401
+
+    user_id = session['user_id']
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        # Actualiza la consulta para incluir is_generated
+        cursor.execute("""
+                SELECT 
+                    p.patient_id, 
+                    p.numero_historia_clinica,
+                    COALESCE(d.is_generated, FALSE) AS is_generated
+                FROM patients p
+                LEFT JOIN diagnostics d 
+                ON p.patient_id = d.patient_id
+                WHERE p.user_id = %s
+            """, (user_id,))
+        patients = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        return jsonify(patients)
+
+    except Exception as e:
+        print("Error al recuperar los pacientes:", str(e))
+        return jsonify(
+            {"error": "Error al recuperar los pacientes. Consulta los registros del servidor para más detalles."}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True)
