@@ -414,32 +414,46 @@ def generate_graph6(test_img, test_prediction_argmax):
     return graph6_html
 
 def generate_graph6_no_prediction(test_img):
+    import plotly.graph_objects as go
+    import plotly.subplots as psub
+    import os
+    from datetime import datetime
+    import numpy as np
+
     modalities = ['T1c', 'T2w', 'FLAIR']
     modality_index = {modality: i for i, modality in enumerate(modalities)}
 
-    # Crear la figura inicial con un subplot
+    # Crear la figura con tantas columnas como modalidades
     fig = psub.make_subplots(
-        rows=1, cols=1,
-        subplot_titles=("MRI Paciente",),
-        specs=[[{"type": "heatmap"}]]
+        rows=1, cols=len(modalities),
+        subplot_titles=[f"Modalidad: {modality}" for modality in modalities],
+        specs=[[{"type": "heatmap"}] * len(modalities)]
     )
 
-    # Añadir la traza inicial (modalidad T1c y primer slice por defecto)
-    fig.add_trace(
-        go.Heatmap(z=test_img[:, :, 0, modality_index['T1c']], colorscale='gray', showscale=False),
-        row=1, col=1
-    )
+    # Añadir las trazas iniciales (primer corte para cada modalidad)
+    for idx, modality in enumerate(modalities):
+        fig.add_trace(
+            go.Heatmap(
+                z=test_img[:, :, 0, modality_index[modality]],
+                colorscale='gray',
+                showscale=False,
+            ),
+            row=1, col=idx + 1
+        )
 
-    # Crear los frames para todas las combinaciones de modalidad y slice
+    # Crear los frames para todas las modalidades y cortes
     frames = []
-    for modality in modalities:
-        for slice_index in range(test_img.shape[2]):
-            frames.append(go.Frame(
-                data=[
-                    go.Heatmap(z=test_img[:, :, slice_index, modality_index[modality]], colorscale='gray', showscale=False)
-                ],
-                name=f"{modality}_{slice_index}"
-            ))
+    for slice_index in range(test_img.shape[2]):
+        frame_data = []
+        for idx, modality in enumerate(modalities):
+            frame_data.append(
+                go.Heatmap(
+                    z=test_img[:, :, slice_index, modality_index[modality]],
+                    colorscale='gray',
+                    showscale=False,
+                )
+            )
+        frames.append(go.Frame(data=frame_data, name=f"slice_{slice_index}"))
 
     # Añadir los frames a la figura
     fig.frames = frames
@@ -449,7 +463,7 @@ def generate_graph6_no_prediction(test_img):
     for slice_index in range(test_img.shape[2]):
         step = dict(
             method="animate",
-            args=[[f"{modalities[0]}_{slice_index}"], dict(mode="immediate", frame=dict(duration=0, redraw=True), transition=dict(duration=0))],
+            args=[[f"slice_{slice_index}"], dict(mode="immediate", frame=dict(duration=0, redraw=True), transition=dict(duration=0))],
             label=str(slice_index)
         )
         steps.append(step)
@@ -460,38 +474,20 @@ def generate_graph6_no_prediction(test_img):
         steps=steps
     )]
 
-    # Crear el menú de botones para seleccionar la modalidad
-    updatemenus = [
-        dict(
-            buttons=[
-                dict(label=modality, method='animate',
-                     args=[[f"{modality}_{slice_index}" for slice_index in range(test_img.shape[2])],
-                           dict(mode="immediate", frame=dict(duration=0, redraw=True), transition=dict(duration=0))])
-                for modality in modalities
-            ],
-            direction='down',
-            showactive=True,
-            x=0.5,
-            xanchor='left',
-            y=1.2,
-            yanchor='top'
-        )
-    ]
-
     # Actualizar el layout de la figura
     fig.update_layout(
         sliders=sliders,
-        updatemenus=updatemenus,
-        title="Visualización interactiva de rebanadas (Modalidades MRI)",
-        height=2000,
-        width=2000,
-        autosize=True,  # Habilitar el ajuste automático
+        title="Visualización interactiva de rebanadas (Modalidades MRI - Lado a Lado)",
+        height=500,
+        width=1500,  # Ajustar el ancho para acomodar las gráficas
+        autosize=True,
         margin=dict(l=20, r=20, t=40, b=20),
         plot_bgcolor='white',
         xaxis=dict(showgrid=False),
         yaxis=dict(showgrid=False),
     )
 
+    # Guardar la gráfica como un archivo HTML
     graph6_html = f'graph6_no_prediction_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
     fig.write_html(os.path.join('static', graph6_html))
     return graph6_html
