@@ -1,5 +1,5 @@
 import os
-from flask import jsonify, request, make_response, Blueprint
+from flask import jsonify, request, make_response, Blueprint, current_app
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from skimage.transform import resize
@@ -8,9 +8,6 @@ import glob
 from werkzeug.utils import secure_filename
 import nibabel as nib
 import matplotlib.pyplot as plt
-
-import app
-
 upload = Blueprint('upload', __name__)
 @upload.route('/upload', methods=['POST'])
 def upload_and_process_files():
@@ -27,7 +24,7 @@ def upload_and_process_files():
     # Añadir mensaje de depuración
     print(f"Patient ID received: {patient_id}")
 
-    mainPath = app.config['UPLOAD_FOLDER']
+    mainPath = current_app.config['UPLOAD_FOLDER']
     for file in upload_files:
         filename = secure_filename(file.filename)
         file.save(os.path.join(mainPath, filename))
