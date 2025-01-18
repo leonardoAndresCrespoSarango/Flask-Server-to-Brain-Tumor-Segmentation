@@ -1,0 +1,2 @@
+from .diagnostic import diagnostic
+from .diagnostic_with_patient import diagnostic_patient
