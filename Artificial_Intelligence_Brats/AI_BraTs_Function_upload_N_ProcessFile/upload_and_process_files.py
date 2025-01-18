@@ -13,7 +13,7 @@ upload = Blueprint('upload', __name__)
 def upload_and_process_files():
     if 'files' not in request.files or 'patient_id' not in request.form:
         response = make_response('No files part or patient ID in the request.', 400)
-        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:4200')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
         return response
@@ -21,7 +21,7 @@ def upload_and_process_files():
     upload_files = request.files.getlist('files')
     patient_id = request.form['patient_id']
 
-    # Añadir mensaje de depuración
+    print(f"Files received: {[file.filename for file in upload_files]}")
     print(f"Patient ID received: {patient_id}")
 
     mainPath = current_app.config['UPLOAD_FOLDER']

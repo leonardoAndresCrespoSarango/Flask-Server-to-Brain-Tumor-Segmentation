@@ -13,6 +13,7 @@ from routes import routes, prediction, user
 from routes.login import loginApp as login_blueprint
 
 app = Flask(__name__)
+
 app.config['UPLOAD_FOLDER'] = 'uploads/'
 app.config['STATIC_FOLDER'] = 'static/'
 path = "uploads/"
