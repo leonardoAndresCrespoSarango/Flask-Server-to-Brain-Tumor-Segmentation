@@ -14,15 +14,16 @@ def add_patient():
 
     patient_info = {
         'id': data.get('patientId'),
-        'numero_historia_clinica': data.get('numeroHistoriaClinica')
+        'numero_historia_clinica': data.get('numeroHistoriaClinica'),
+        'survey_completed': False  # Inicializamos como False
     }
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'INSERT INTO patients (user_id, patient_id, numero_historia_clinica) VALUES (%s, %s, %s)',
-            (user_id, patient_info['id'], patient_info['numero_historia_clinica'])
+            'INSERT INTO patients (user_id, patient_id, numero_historia_clinica, survey_completed) VALUES (%s, %s, %s, %s)',
+            (user_id, patient_info['id'], patient_info['numero_historia_clinica'], patient_info['survey_completed'])
         )
         conn.commit()
         cursor.close()
@@ -44,7 +45,7 @@ def get_patients():
     try:
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute('SELECT patient_id, numero_historia_clinica FROM patients WHERE user_id = %s', (user_id,))
+        cursor.execute('SELECT patient_id, numero_historia_clinica, survey_completed FROM patients WHERE user_id = %s', (user_id,))
         patients = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -55,3 +56,59 @@ def get_patients():
         print("Error al recuperar los pacientes:", str(e))
         return jsonify({"error": "Error al recuperar los pacientes. Consulta los registros del servidor para más detalles."}), 500
 
+
+@patient.route('/patients/<patient_id>/survey-status', methods=['PUT'])
+def update_survey_status(patient_id):
+    if 'user_id' not in session:
+        return jsonify({"error": "Usuario no autenticado"}), 401
+
+    user_id = session['user_id']
+
+    # Obtener el estado de la encuesta desde el cuerpo de la solicitud
+    data = request.get_json()  # Obtén el cuerpo JSON
+    survey_completed = data.get('survey_completed', None)
+
+    if survey_completed is None:
+        return jsonify({"error": "Estado de la encuesta no proporcionado"}), 400
+
+    # Verificar que survey_completed sea un booleano
+    if not isinstance(survey_completed, bool):
+        return jsonify({"error": "El valor de 'survey_completed' debe ser un valor booleano (true o false)."}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verificar si el paciente existe para el usuario
+        cursor.execute(
+            'SELECT 1 FROM patients WHERE patient_id = %s AND user_id = %s',
+            (patient_id, user_id)
+        )
+        if cursor.fetchone() is None:
+            return jsonify(
+                {"error": "No se encontró el paciente o no tienes permisos para actualizar este estado."}), 404
+
+        # Si el paciente existe, actualizamos el estado de la encuesta
+        cursor.execute(
+            'UPDATE patients SET survey_completed = %s WHERE patient_id = %s AND user_id = %s',
+            (survey_completed, patient_id, user_id)
+        )
+
+        if cursor.rowcount == 0:
+            return jsonify({"error": "No se pudo actualizar el estado de la encuesta."}), 500
+
+        conn.commit()
+
+        return jsonify({'message': 'Estado de encuesta actualizado exitosamente'}), 200
+
+    except Exception as e:
+        app.logger.error(f"Error al actualizar el estado de la encuesta: {str(e)}")
+        return jsonify({
+                           "error": "Error al actualizar el estado de la encuesta. Consulta los registros del servidor para más detalles."}), 500
+
+    finally:
+        # Asegúrate de cerrar la conexión y el cursor independientemente de que haya error o no
+        if conn:
+            conn.close()
+        if cursor:
+            cursor.close()

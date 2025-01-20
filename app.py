@@ -11,8 +11,10 @@ from diagnostic import diagnostic, diagnostic_patient
 from patient import patient
 from routes import routes, prediction, user
 from routes.login import loginApp as login_blueprint
+from flask_cors import CORS
 
 app = Flask(__name__)
+
 
 app.config['UPLOAD_FOLDER'] = 'uploads/'
 app.config['STATIC_FOLDER'] = 'static/'
@@ -20,6 +22,7 @@ path = "uploads/"
 secret_key = os.urandom(24)
 print(secret_key)
 app.secret_key =secret_key
+
 
 sys.stdin.reconfigure(encoding='utf-8')
 sys.stdout.reconfigure(encoding='utf-8')

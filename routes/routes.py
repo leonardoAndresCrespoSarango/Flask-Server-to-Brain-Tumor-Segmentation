@@ -149,23 +149,34 @@ def submit_feedback(patient_id):
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute('SELECT * FROM patients WHERE patient_id = %s', (patient_id,))
     patient = cursor.fetchone()
-    cursor.close()
-    conn.close()
 
     if not patient:
+        cursor.close()
+        conn.close()
         return jsonify({'error': 'Patient not found'}), 404
 
     # Guardar la encuesta en la base de datos
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        'INSERT INTO surveys (patient_id, ayudo_ia, comentarios_adicionales) '
-        'VALUES (%s, %s, %s)',
-        (patient_id, ayudo_ia, comentarios_adicionales)
-    )
-    conn.commit()
-    cursor.close()
-    conn.close()
+    try:
+        cursor.execute(
+            'INSERT INTO surveys (patient_id, ayudo_ia, comentarios_adicionales) '
+            'VALUES (%s, %s, %s)',
+            (patient_id, ayudo_ia, comentarios_adicionales)
+        )
+        conn.commit()
 
-    return jsonify({'message': 'Feedback submitted successfully'})
+        # Actualizar el campo survey_completed a TRUE en la tabla patients
+        cursor.execute(
+            'UPDATE patients SET survey_completed = TRUE WHERE patient_id = %s',
+            (patient_id,)
+        )
+        conn.commit()
 
+        return jsonify({'message': 'Feedback submitted and survey status updated successfully'})
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+
+    finally:
+        cursor.close()
+        conn.close()

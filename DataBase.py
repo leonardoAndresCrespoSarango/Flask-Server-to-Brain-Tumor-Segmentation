@@ -36,12 +36,13 @@ def create_tables():
         FOREIGN KEY (user_id) REFERENCES users(id)
     );
     CREATE TABLE IF NOT EXISTS patients (
-        id SERIAL PRIMARY KEY,
-        user_id INT NOT NULL,
-        patient_id VARCHAR(255) NOT NULL UNIQUE,
-        numero_historia_clinica VARCHAR(255) NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-    );
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    patient_id VARCHAR(255) NOT NULL UNIQUE,
+    numero_historia_clinica VARCHAR(255) NOT NULL,
+    survey_completed BOOLEAN DEFAULT FALSE, -- Campo que indica si la encuesta ha sido completada
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
 
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
         id SERIAL PRIMARY KEY,
