@@ -137,3 +137,45 @@ def generate_reset_token():
     conn.close()
 
     return jsonify({'token': token, 'message': 'Reset token generated successfully'})
+@routes.route('/submit-feedbackE/<patient_id>', methods=['POST'])
+def submit_feedback(patient_id):
+    data = request.json
+    ayudo_ia = data.get('ayudo_ia')  # Se asume que recibimos un valor booleano
+    comentarios_adicionales = data.get('comentarios_adicionales', '')  # Comentarios opcionales
+
+    # Verifica si el paciente existe
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute('SELECT * FROM patients WHERE patient_id = %s', (patient_id,))
+    patient = cursor.fetchone()
+
+    if not patient:
+        cursor.close()
+        conn.close()
+        return jsonify({'error': 'Patient not found'}), 404
+
+    # Guardar la encuesta en la base de datos
+    try:
+        cursor.execute(
+            'INSERT INTO surveys (patient_id, ayudo_ia, comentarios_adicionales) '
+            'VALUES (%s, %s, %s)',
+            (patient_id, ayudo_ia, comentarios_adicionales)
+        )
+        conn.commit()
+
+        # Actualizar el campo survey_completed a TRUE en la tabla patients
+        cursor.execute(
+            'UPDATE patients SET survey_completed = TRUE WHERE patient_id = %s',
+            (patient_id,)
+        )
+        conn.commit()
+
+        return jsonify({'message': 'Feedback submitted and survey status updated successfully'})
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+
+    finally:
+        cursor.close()
+        conn.close()

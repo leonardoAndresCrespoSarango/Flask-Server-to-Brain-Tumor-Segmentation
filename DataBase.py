@@ -5,7 +5,7 @@ from psycopg2.extras import RealDictCursor
 def get_db_connection():
     return psycopg2.connect(
         dbname='postgres',
-        user='postgres.txfhmfkxzcwigxhzhvmx',
+        user='postgres.ldsihxoskpzlzdprmvmq',
         password='VLNVddyd2002',
         host='aws-0-us-east-1.pooler.supabase.com',
         port='6543'
@@ -36,12 +36,13 @@ def create_tables():
         FOREIGN KEY (user_id) REFERENCES users(id)
     );
     CREATE TABLE IF NOT EXISTS patients (
-        id SERIAL PRIMARY KEY,
-        user_id INT NOT NULL,
-        patient_id VARCHAR(255) NOT NULL UNIQUE,
-        numero_historia_clinica VARCHAR(255) NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-    );
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    patient_id VARCHAR(255) NOT NULL UNIQUE,
+    numero_historia_clinica VARCHAR(255) NOT NULL,
+    survey_completed BOOLEAN DEFAULT FALSE, -- Campo que indica si la encuesta ha sido completada
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
 
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
         id SERIAL PRIMARY KEY,
@@ -72,6 +73,26 @@ def create_tables():
         modalities_description TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS reports (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL,
+        patient_id VARCHAR(255) NOT NULL,
+        report_text2 TEXT NOT NULL,
+        report_text5 TEXT NOT NULL,
+        graph2_image_path TEXT NOT NULL,
+        graph5_image_path TEXT NOT NULL,
+        feedback JSON NOT NULL,
+        modalities_description TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS surveys (
+    id SERIAL PRIMARY KEY,
+    patient_id VARCHAR(255) NOT NULL, -- Usar VARCHAR(255) para permitir IDs alfanuméricos
+    ayudo_ia BOOLEAN NOT NULL,        -- Indica si la IA ayudó a mejorar el diagnóstico
+    comentarios_adicionales TEXT,    -- Comentarios adicionales sobre el proceso
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (patient_id) REFERENCES patients(patient_id) -- Asegúrate de que patients.patient_id también sea VARCHAR
+);
     """)
     conn.commit()
 
@@ -89,31 +110,6 @@ def create_tables():
     END
     $$;
     """)
-    conn.commit()
-    # Modificar la tabla 'diagnostics' si es necesario
-    cursor.execute("""
-        DO $$ 
-        BEGIN
-            -- Eliminar columna 'title' si existe
-            IF EXISTS (
-                SELECT 1
-                FROM information_schema.columns
-                WHERE table_name = 'diagnostics' AND column_name = 'title'
-            ) THEN
-                ALTER TABLE diagnostics DROP COLUMN title;
-            END IF;
-
-            -- Agregar columna 'has_cancer' si no existe
-            IF NOT EXISTS (
-                SELECT 1
-                FROM information_schema.columns
-                WHERE table_name = 'diagnostics' AND column_name = 'has_cancer'
-            ) THEN
-                ALTER TABLE diagnostics ADD COLUMN has_cancer BOOLEAN DEFAULT FALSE;
-            END IF;
-        END
-        $$;
-        """)
     conn.commit()
     cursor.close()
     conn.close()
