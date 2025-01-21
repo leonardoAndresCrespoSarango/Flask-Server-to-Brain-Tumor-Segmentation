@@ -144,3 +144,4 @@ def get_diagnostic(patient_id):
         print("Error al recuperar el diagnóstico:", str(e))
         return jsonify({"error": "Error al recuperar el diagnóstico. Consulta los registros del servidor para más detalles."}), 500
 
+
