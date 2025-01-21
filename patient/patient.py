@@ -4,6 +4,8 @@ from flask import Flask, jsonify, request, render_template, send_file, redirect,
 from DataBase import create_tables, get_db_connection
 from psycopg2.extras import RealDictCursor
 
+
+
 patient = Blueprint('patient', __name__)
 @patient.route('/add-patient', methods=['POST'])
 def add_patient():
@@ -46,7 +48,18 @@ def get_patients():
     try:
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute('SELECT patient_id, numero_historia_clinica, survey_completed FROM patients WHERE user_id = %s', (user_id,))
+        cursor.execute("""
+                        SELECT 
+                            p.patient_id, 
+                            p.numero_historia_clinica,
+                            p.survey_completed,
+                            COALESCE(d.is_generated, FALSE) AS is_generated,
+                            COALESCE(d.has_cancer, FALSE) AS has_cancer
+                        FROM patients p
+                        LEFT JOIN diagnostics d 
+                        ON p.patient_id = d.patient_id
+                        WHERE p.user_id = %s
+                    """, (user_id,))
         patients = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -103,7 +116,7 @@ def update_survey_status(patient_id):
         return jsonify({'message': 'Estado de encuesta actualizado exitosamente'}), 200
 
     except Exception as e:
-        app.logger.error(f"Error al actualizar el estado de la encuesta: {str(e)}")
+        patient.logger.error(f"Error al actualizar el estado de la encuesta: {str(e)}")
         return jsonify({
                            "error": "Error al actualizar el estado de la encuesta. Consulta los registros del servidor para más detalles."}), 500
 
