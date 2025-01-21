@@ -111,6 +111,7 @@ def create_tables():
     $$;
     """)
     conn.commit()
+    #subir commit
     # Modificar la tabla 'diagnostics' si es necesario
     cursor.execute("""
             DO $$ 
