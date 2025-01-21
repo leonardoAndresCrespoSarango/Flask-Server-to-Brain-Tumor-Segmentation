@@ -137,6 +137,7 @@ def generate_reset_token():
     conn.close()
 
     return jsonify({'token': token, 'message': 'Reset token generated successfully'})
+
 @routes.route('/submit-feedbackE/<patient_id>', methods=['POST'])
 def submit_feedback(patient_id):
     data = request.json
