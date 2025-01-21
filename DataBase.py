@@ -90,5 +90,30 @@ def create_tables():
     $$;
     """)
     conn.commit()
+    # Modificar la tabla 'diagnostics' si es necesario
+    cursor.execute("""
+        DO $$ 
+        BEGIN
+            -- Eliminar columna 'title' si existe
+            IF EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'diagnostics' AND column_name = 'title'
+            ) THEN
+                ALTER TABLE diagnostics DROP COLUMN title;
+            END IF;
+
+            -- Agregar columna 'has_cancer' si no existe
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'diagnostics' AND column_name = 'has_cancer'
+            ) THEN
+                ALTER TABLE diagnostics ADD COLUMN has_cancer BOOLEAN DEFAULT FALSE;
+            END IF;
+        END
+        $$;
+        """)
+    conn.commit()
     cursor.close()
     conn.close()
