@@ -11,7 +11,6 @@ from diagnostic import diagnostic, diagnostic_patient
 from patient import patient
 from routes import routes, prediction, user
 from routes.login import loginApp as login_blueprint
-from flask_cors import CORS
 
 app = Flask(__name__)
 
