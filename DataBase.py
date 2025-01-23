@@ -136,6 +136,37 @@ def create_tables():
             $$;
             """)
     conn.commit()
+
+    # Agregar columna 'report_path' si no existe en la tabla reports
+    cursor.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name='diagnostics' AND column_name='report_path'
+            ) THEN
+                ALTER TABLE diagnostics ADD COLUMN report_path TEXT;
+            END IF;
+        END
+        $$;
+        """)
+    conn.commit()
+    # Agregar columna 'created_at' si no existe
+    cursor.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name='diagnostics' AND column_name='created_at'
+            ) THEN
+                ALTER TABLE diagnostics ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+            END IF;
+        END
+        $$;
+        """)
+    conn.commit()
     cursor.close()
     conn.close()
 
