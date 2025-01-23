@@ -49,17 +49,18 @@ def get_patients():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute("""
-                        SELECT 
-                            p.patient_id, 
-                            p.numero_historia_clinica,
-                            p.survey_completed,
-                            COALESCE(d.is_generated, FALSE) AS is_generated,
-                            COALESCE(d.has_cancer, FALSE) AS has_cancer
-                        FROM patients p
-                        LEFT JOIN diagnostics d 
-                        ON p.patient_id = d.patient_id
-                        WHERE p.user_id = %s
-                    """, (user_id,))
+                   SELECT 
+                       p.patient_id, 
+                       p.numero_historia_clinica,
+                       p.survey_completed,
+                       d.is_generated,
+                       d.has_cancer,
+                       d.report_path
+                   FROM patients p
+                   LEFT JOIN diagnostics d 
+                   ON p.patient_id = d.patient_id
+                   WHERE p.user_id = %s
+               """, (user_id,))
         patients = cursor.fetchall()
         cursor.close()
         conn.close()
