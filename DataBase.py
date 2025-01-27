@@ -5,7 +5,7 @@ from psycopg2.extras import RealDictCursor
 def get_db_connection():
     return psycopg2.connect(
         dbname='postgres',
-        user='postgres.txfhmfkxzcwigxhzhvmx',
+        user='postgres.ldsihxoskpzlzdprmvmq',
         password='VLNVddyd2002',
         host='aws-0-us-east-1.pooler.supabase.com',
         port='6543'
@@ -88,10 +88,12 @@ def create_tables():
     CREATE TABLE IF NOT EXISTS surveys (
     id SERIAL PRIMARY KEY,
     patient_id VARCHAR(255) NOT NULL, -- Usar VARCHAR(255) para permitir IDs alfanuméricos
-    ayudo_ia BOOLEAN NOT NULL,        -- Indica si la IA ayudó a mejorar el diagnóstico
-    comentarios_adicionales TEXT,    -- Comentarios adicionales sobre el proceso
+    ayudo_ia BOOLEAN NOT NULL,        -- Indica si la IA ayudó a mejorar el diagnósticoss 
+    mejoro_ia BOOLEAN NOT NULL,
+    comentarios_adicionales TEXT,     -- Comentarios adicionales sobre el proceso
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(patient_id) -- Asegúrate de que patients.patient_id también sea VARCHAR
+    FOREIGN KEY (patient_id) REFERENCES patients(patient_id), -- Asegúrate de que patients.patient_id también sea VARCHAR
+    CONSTRAINT unique_patient_id UNIQUE (patient_id)  -- Restringe la tabla a solo una encuesta por paciente
 );
     """)
     conn.commit()
@@ -111,6 +113,7 @@ def create_tables():
     $$;
     """)
     conn.commit()
+    #subir commit
     # Modificar la tabla 'diagnostics' si es necesario
     cursor.execute("""
             DO $$ 
