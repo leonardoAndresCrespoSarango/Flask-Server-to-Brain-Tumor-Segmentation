@@ -215,6 +215,77 @@ def create_tables():
         $$;
     """)
     conn.commit()
+    # Verificar y agregar columnas faltantes en `patients`
+    cursor.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'patients' AND column_name = 'predicted_segmentation'
+            ) THEN
+                ALTER TABLE patients ADD COLUMN predicted_segmentation JSONB;
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'patients' AND column_name = 'graph1_path'
+            ) THEN
+                ALTER TABLE patients ADD COLUMN graph1_path TEXT;
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'patients' AND column_name = 'graph2_path'
+            ) THEN
+                ALTER TABLE patients ADD COLUMN graph2_path TEXT;
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'patients' AND column_name = 'graph3_path'
+            ) THEN
+                ALTER TABLE patients ADD COLUMN graph3_path TEXT;
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'patients' AND column_name = 'graph4_path'
+            ) THEN
+                ALTER TABLE patients ADD COLUMN graph4_path TEXT;
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'patients' AND column_name = 'graph5_path'
+            ) THEN
+                ALTER TABLE patients ADD COLUMN graph5_path TEXT;
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'patients' AND column_name = 'graph6_path'
+            ) THEN
+                ALTER TABLE patients ADD COLUMN graph6_path TEXT;
+            END IF;
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'patients' AND column_name = 'graph_segmentation_path'
+            ) THEN
+                ALTER TABLE patients ADD COLUMN graph_segmentation_path TEXT;
+            END IF;
+        END
+        $$;
+        """)
+
+    conn.commit()
 
     cursor.close()
     conn.close()
