@@ -36,13 +36,16 @@ def create_tables():
         FOREIGN KEY (user_id) REFERENCES users(id)
     );
     CREATE TABLE IF NOT EXISTS patients (
-    id SERIAL PRIMARY KEY,
-    user_id INT NOT NULL,
-    patient_id VARCHAR(255) NOT NULL UNIQUE,
-    numero_historia_clinica VARCHAR(255) NOT NULL,
-    survey_completed BOOLEAN DEFAULT FALSE, -- Campo que indica si la encuesta ha sido completada
-    FOREIGN KEY (user_id) REFERENCES users(id)
-);
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL,
+        patient_id VARCHAR(255) NOT NULL UNIQUE,
+        numero_historia_clinica VARCHAR(255) NOT NULL,
+        survey_completed BOOLEAN DEFAULT FALSE, -- Campo que indica si la encuesta ha sido completada
+        t1ce_path TEXT, -- Path del archivo T1c
+        t2_path TEXT, -- Path del archivo T2
+        flair_path TEXT, -- Path del archivo FLAIR
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    );
 
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
         id SERIAL PRIMARY KEY,
@@ -167,6 +170,49 @@ def create_tables():
         $$;
         """)
     conn.commit()
+    # Agregar columna 'updated_at' si no existe
+    cursor.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'diagnostics' AND column_name = 'updated_at'
+            ) THEN
+                ALTER TABLE diagnostics ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+            END IF;
+        END
+        $$;
+    """)
+    conn.commit()
+
+    # Crear trigger para actualizar 'updated_at' automáticamente
+    cursor.execute("""
+        CREATE OR REPLACE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.updated_at = CURRENT_TIMESTAMP;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_trigger
+                WHERE tgname = 'set_updated_at'
+            ) THEN
+                CREATE TRIGGER set_updated_at
+                BEFORE UPDATE ON diagnostics
+                FOR EACH ROW
+                EXECUTE FUNCTION update_updated_at_column();
+            END IF;
+        END
+        $$;
+    """)
+    conn.commit()
+
     cursor.close()
     conn.close()
 

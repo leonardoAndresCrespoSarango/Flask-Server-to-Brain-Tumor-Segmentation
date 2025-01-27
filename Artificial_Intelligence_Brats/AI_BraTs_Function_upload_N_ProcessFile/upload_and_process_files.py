@@ -1,13 +1,18 @@
 import os
-from flask import jsonify, request, make_response, Blueprint, current_app
+from flask import jsonify, request, make_response, Blueprint, current_app, session
 import numpy as np
+from psycopg2.extras import RealDictCursor
 from sklearn.preprocessing import MinMaxScaler
 from skimage.transform import resize
 import h5py
 import glob
+from tensorflow.keras.utils import to_categorical
 from werkzeug.utils import secure_filename
 import nibabel as nib
 import matplotlib.pyplot as plt
+
+from DataBase import get_db_connection
+
 upload = Blueprint('upload', __name__)
 @upload.route('/upload', methods=['POST'])
 def upload_and_process_files():
@@ -20,11 +25,19 @@ def upload_and_process_files():
 
     upload_files = request.files.getlist('files')
     patient_id = request.form['patient_id']
+    user_id = session.get('user_id')  # Obtén el ID del usuario autenticado
+
+    if not user_id:
+        return jsonify({'message': 'Usuario no autenticado'}), 401
 
     print(f"Files received: {[file.filename for file in upload_files]}")
     print(f"Patient ID received: {patient_id}")
+    print(f"User ID: {user_id}")
 
     mainPath = current_app.config['UPLOAD_FOLDER']
+    if not os.path.exists(mainPath):
+        os.makedirs(mainPath)
+
     for file in upload_files:
         filename = secure_filename(file.filename)
         file.save(os.path.join(mainPath, filename))
@@ -33,6 +46,7 @@ def upload_and_process_files():
     # Verificar el contenido del directorio uploads
     print(f"Contenido de {mainPath}: {os.listdir(mainPath)}")
 
+    # Obtener paths de las modalidades
     t2_path = os.path.join(mainPath, '*t2W.nii.gz')
     t1ce_path = os.path.join(mainPath, '*t1c.nii.gz')
     flair_path = os.path.join(mainPath, '*t2f.nii.gz')
@@ -53,9 +67,39 @@ def upload_and_process_files():
         print("Error: Required files are missing")
         return jsonify({'message': 'Error: Required files are missing'}), 400
 
+    try:
+        # Insertar o actualizar paths en la base de datos
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Solo actualizar paths de las modalidades
+        cursor.execute("""
+        UPDATE patients
+        SET t1ce_path = %s,
+            t2_path = %s,
+            flair_path = %s
+        WHERE patient_id = %s AND user_id = %s;
+        """, (
+            t1ce_list[0] if t1ce_list else None,
+            t2_list[0] if t2_list else None,
+            flair_list[0] if flair_list else None,
+            patient_id,
+            user_id
+        ))
+
+        # Confirmar la transacción
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print(f"Paths actualizados correctamente para el paciente {patient_id}")
+
+    except Exception as e:
+        print(f"Error al guardar los paths en la base de datos: {e}")
+        return jsonify({'message': 'Error al guardar los paths en la base de datos.'}), 500
+
+    # Procesar y guardar las imágenes
     scaler = MinMaxScaler()
     target_shape = (128, 128, 128)  # Dimensiones objetivo
-
     output_path = 'processed_files/'
     if not os.path.exists(output_path):
         os.makedirs(output_path)
@@ -78,21 +122,6 @@ def upload_and_process_files():
         temp_combined_images = np.stack([temp_image_t1ce, temp_image_t2, temp_image_flair], axis=3)
 
         temp_combined_images_resized = resize(temp_combined_images, target_shape, mode='constant', anti_aliasing=True)
-        for i in range(temp_combined_images_resized.shape[2]):
-            fig, axes = plt.subplots(1, 3, figsize=(12, 4))
-            axes[0].imshow(temp_combined_images_resized[:, :, i, 0], cmap='gray')
-            axes[0].set_title('T1CE')
-            axes[1].imshow(temp_combined_images_resized[:, :, i, 1], cmap='gray')
-            axes[1].set_title('T2')
-            axes[2].imshow(temp_combined_images_resized[:, :, i, 2], cmap='gray')
-            axes[2].set_title('FLAIR')
-            for ax in axes:
-                ax.axis('off')
-            fig.canvas.draw()
-            image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
-            image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-            plt.close(fig)
-            images.append(image)
 
         try:
             with h5py.File(h5_filename, 'w') as hf:
@@ -108,4 +137,122 @@ def upload_and_process_files():
         return jsonify({'message': 'Archivos cargados y procesados exitosamente. Las imágenes han sido guardadas como HDF5.'})
     else:
         print(f"Error: El archivo HDF5 {h5_filename} no fue creado.")
+        return jsonify({'message': f'Error: El archivo HDF5 {h5_filename} no fue creado.'}), 500
+
+
+
+
+@upload.route('/upload-segmentation', methods=['POST'])
+def upload_and_process_segmentation():
+    if 'files' not in request.files or 'patient_id' not in request.form:
+        response = make_response('No files part or patient ID in the request.', 400)
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:4200')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+
+    upload_files = request.files.getlist('files')
+    patient_id = request.form['patient_id']
+
+    print(f"Files received: {[file.filename for file in upload_files]}")
+    print(f"Patient ID received: {patient_id}")
+
+    main_path = current_app.config['UPLOAD_FOLDER']
+    if not os.path.exists(main_path):
+        os.makedirs(main_path)
+
+    # Guardar el archivo de segmentación
+    for file in upload_files:
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(main_path, filename))
+        print(f"Archivo de segmentación guardado: {filename}")
+
+    seg_path = os.path.join(main_path, '*seg.nii.gz')
+    seg_list = sorted(glob.glob(seg_path))
+
+    if not seg_list:
+        return jsonify({'message': 'Error: No se encontró el archivo de segmentación'}), 400
+
+    print(f"Archivo de segmentación encontrado: {seg_list[0]}")
+
+    # Consultar paths de las modalidades en la base de datos
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        cursor.execute("""
+            SELECT t1ce_path, t2_path, flair_path
+            FROM patients
+            WHERE patient_id = %s;
+        """, (patient_id,))
+        result = cursor.fetchone()
+
+        if not result:
+            return jsonify({'message': f'Error: No se encontraron registros para el paciente {patient_id}.'}), 404
+
+        t1ce_path = result['t1ce_path']
+        t2_path = result['t2_path']
+        flair_path = result['flair_path']
+
+        print(f"Paths recuperados de la base de datos:")
+        print(f"T1CE Path: {t1ce_path}")
+        print(f"T2 Path: {t2_path}")
+        print(f"FLAIR Path: {flair_path}")
+
+        if not t1ce_path or not t2_path or not flair_path:
+            return jsonify({'message': 'Error: Faltan uno o más paths de modalidades en la base de datos.'}), 400
+
+    except Exception as e:
+        print(f"Error al consultar la base de datos: {e}")
+        return jsonify({'message': 'Error al consultar la base de datos.'}), 500
+
+    finally:
+        cursor.close()
+        conn.close()
+
+    # Preprocesar imágenes y segmentaciones
+    try:
+        temp_image_t1ce = nib.load(t1ce_path).get_fdata()
+        temp_image_t2 = nib.load(t2_path).get_fdata()
+        temp_image_flair = nib.load(flair_path).get_fdata()
+        temp_mask = nib.load(seg_list[0]).get_fdata().astype(np.uint8)
+
+        scaler = MinMaxScaler()
+        target_shape = (128, 128, 128)
+
+        # Normalizar imágenes
+        temp_image_t1ce = scaler.fit_transform(temp_image_t1ce.reshape(-1, temp_image_t1ce.shape[-1])).reshape(temp_image_t1ce.shape)
+        temp_image_t2 = scaler.fit_transform(temp_image_t2.reshape(-1, temp_image_t2.shape[-1])).reshape(temp_image_t2.shape)
+        temp_image_flair = scaler.fit_transform(temp_image_flair.reshape(-1, temp_image_flair.shape[-1])).reshape(temp_image_flair.shape)
+
+        # Redimensionar imágenes y segmentaciones
+        temp_combined_images = np.stack([temp_image_t1ce, temp_image_t2, temp_image_flair], axis=3)
+        temp_combined_images_resized = resize(temp_combined_images, target_shape, mode='constant', anti_aliasing=True)
+        temp_mask_resized = resize(temp_mask, target_shape, mode='constant', anti_aliasing=False, preserve_range=True).astype(np.uint8)
+
+        # Codificar segmentaciones
+        temp_mask_resized = to_categorical(temp_mask_resized, num_classes=4)
+
+        # Guardar en HDF5
+        output_path = 'processed_files/'
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+
+        h5_filename = os.path.join(output_path, f'{patient_id}_withSeg.h5')
+        with h5py.File(h5_filename, 'w') as hf:
+            hf.create_dataset('images', data=temp_combined_images_resized, compression='gzip')
+            hf.create_dataset('masks', data=temp_mask_resized, compression='gzip')
+        print(f"Imágenes y segmentación guardadas para el paciente {patient_id} como HDF5 en {h5_filename}")
+
+    except Exception as e:
+        print(f"Error durante el preprocesamiento: {e}")
+        return jsonify({'message': f'Error durante el preprocesamiento: {str(e)}'}), 500
+
+    # Verificar si el archivo HDF5 fue creado correctamente
+    if os.path.exists(h5_filename):
+        return jsonify({
+            'message': 'Archivos cargados y procesados exitosamente. Las imágenes y la segmentación han sido guardadas como HDF5.',
+            'h5_file': h5_filename
+        })
+    else:
         return jsonify({'message': f'Error: El archivo HDF5 {h5_filename} no fue creado.'}), 500

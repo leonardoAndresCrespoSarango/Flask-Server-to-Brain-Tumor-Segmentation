@@ -1,7 +1,7 @@
 from pylatex import Document, Section, Command
 from pylatex.utils import NoEscape
 
-def generate_medical_report(patient_id, patient_history, has_cancer, description, doctor_name, doctor_username):
+def generate_medical_report(patient_id, patient_history, has_cancer, description, doctor_name, doctor_username, created_at, updated_at):
     # Crear documento LaTeX
     doc = Document()
     # Configurar idioma español para el documento
@@ -19,8 +19,14 @@ def generate_medical_report(patient_id, patient_history, has_cancer, description
 
     # Diagnóstico médico
     with doc.create(Section('Diagnóstico Médico')):
-        doc.append(f'Diagnostico Presuntivo: {"Presenta Cáncer" if has_cancer else "No presenta Cáncer"}\n')
+        doc.append(f'Diagnóstico Presuntivo: {"Presenta Cáncer" if has_cancer else "No presenta Cáncer"}\n')
         doc.append(f'Observación del Médico:\n{description}\n')
+
+    # Fechas relevantes
+    with doc.create(Section('Tiempos del Diagnóstico')):
+        doc.append(f'Hora de creación: {created_at.strftime("%Y-%m-%d %H:%M:%S")}\n')
+        if updated_at:
+            doc.append(f'Hora de última actualización: {updated_at.strftime("%Y-%m-%d %H:%M:%S")}\n')
 
     # Información del médico
     with doc.create(Section('Médico Responsable')):
