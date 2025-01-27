@@ -136,6 +136,7 @@ def updateSurvey(patient_id):
 
         # Obtener los campos que se quieren actualizar
         ayudo_ia = data.get('ayudo_ia')
+        mejoro_ia = data.get('mejoro_ia')
         comentarios_adicionales = data.get('comentarios_adicionales')
 
         # Conexión a la base de datos
@@ -150,18 +151,18 @@ def updateSurvey(patient_id):
             # Si la encuesta existe, se actualiza
             cursor.execute("""
                 UPDATE surveys
-                SET ayudo_ia = %s, comentarios_adicionales = %s, created_at = CURRENT_TIMESTAMP
+                SET ayudo_ia = %s,mejoro_ia = %s, comentarios_adicionales = %s, created_at = CURRENT_TIMESTAMP
                 WHERE patient_id = %s
-            """, (ayudo_ia, comentarios_adicionales, patient_id))
+            """, (ayudo_ia, mejoro_ia, comentarios_adicionales, patient_id))
 
             conn.commit()
             return jsonify({'message': 'Encuesta actualizada correctamente'}), 200
         else:
             # Si no existe una encuesta, se crea una nueva
             cursor.execute("""
-                INSERT INTO surveys (patient_id, ayudo_ia, comentarios_adicionales)
+                INSERT INTO surveys (patient_id, ayudo_ia, mejoro_ia, comentarios_adicionales)
                 VALUES (%s, %s, %s)
-            """, (patient_id, ayudo_ia, comentarios_adicionales))
+            """, (patient_id, ayudo_ia, mejoro_ia, comentarios_adicionales))
 
             conn.commit()
             return jsonify({'message': 'Encuesta creada correctamente'}), 201
@@ -174,3 +175,5 @@ def updateSurvey(patient_id):
         # Asegurarse de cerrar la conexión y cursor
         cursor.close()
         conn.close()
+
+

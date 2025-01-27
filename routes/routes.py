@@ -142,6 +142,7 @@ def generate_reset_token():
 def submit_feedback(patient_id):
     data = request.json
     ayudo_ia = data.get('ayudo_ia')  # Se asume que recibimos un valor booleano
+    mejoro_ia = data.get('mejoro_ia')
     comentarios_adicionales = data.get('comentarios_adicionales', '')  # Comentarios opcionales
 
     # Verifica si el paciente existe
@@ -163,18 +164,18 @@ def submit_feedback(patient_id):
         if survey:
             # Si ya existe una encuesta, actualizamos los datos
             cursor.execute(
-                'UPDATE surveys SET ayudo_ia = %s, comentarios_adicionales = %s, created_at = CURRENT_TIMESTAMP '
+                'UPDATE surveys SET ayudo_ia = %s, mejoro_ia= %s, comentarios_adicionales = %s, created_at = CURRENT_TIMESTAMP '
                 'WHERE patient_id = %s',
-                (ayudo_ia, comentarios_adicionales, patient_id)
+                (ayudo_ia, mejoro_ia, comentarios_adicionales, patient_id)
             )
             conn.commit()
             return jsonify({'message': 'Survey updated successfully'}), 200
         else:
             # Si no existe una encuesta, la creamos
             cursor.execute(
-                'INSERT INTO surveys (patient_id, ayudo_ia, comentarios_adicionales) '
-                'VALUES (%s, %s, %s)',
-                (patient_id, ayudo_ia, comentarios_adicionales)
+                'INSERT INTO surveys (patient_id, ayudo_ia, mejoro_ia, comentarios_adicionales) '
+                'VALUES (%s, %s, %s,%s)',
+                (patient_id, ayudo_ia, mejoro_ia, comentarios_adicionales)
             )
             conn.commit()
 

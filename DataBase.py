@@ -89,6 +89,7 @@ def create_tables():
     id SERIAL PRIMARY KEY,
     patient_id VARCHAR(255) NOT NULL, -- Usar VARCHAR(255) para permitir IDs alfanuméricos
     ayudo_ia BOOLEAN NOT NULL,        -- Indica si la IA ayudó a mejorar el diagnósticoss 
+    mejoro_ia BOOLEAN NOT NULL,
     comentarios_adicionales TEXT,     -- Comentarios adicionales sobre el proceso
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_id) REFERENCES patients(patient_id), -- Asegúrate de que patients.patient_id también sea VARCHAR
