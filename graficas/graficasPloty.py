@@ -606,3 +606,100 @@ def generate_graph_with_real_segmentation(test_img, real_segmentation):
     fig.write_html(os.path.join('static', graph_html))
     print(f"Gráfica guardada en: {graph_html}")
     return graph_html
+
+
+def generate_graph_real_and_predicted_segmentation_with_brain(test_img, real_segmentation, predicted_segmentation):
+    """
+    Genera una gráfica 3D con dos cerebros completos:
+    - Uno mostrando la segmentación real sobre el cerebro.
+    - Otro mostrando la segmentación predicha sobre el cerebro.
+    Incluye una leyenda para las clases.
+    """
+    # Colores consistentes para ambas segmentaciones
+    class_colors = {
+        1: 'red',    # Clase 1: Núcleo necrótico
+        2: 'green',  # Clase 2: Edema
+        3: 'blue',   # Clase 3: Tumor activo
+    }
+
+    class_descriptions = {
+        1: 'Núcleo Necrótico',
+        2: 'Edema',
+        3: 'Tumor Activo',
+    }
+
+    fig = psub.make_subplots(
+        rows=1, cols=2,
+        subplot_titles=['Segmentación Real con Cerebro', 'Segmentación Predicha con Cerebro'],
+        specs=[[{'type': 'scene'}, {'type': 'scene'}]],
+        horizontal_spacing=0.1
+    )
+
+    # Geometría del cerebro basada en T1c
+    brain_volume = test_img[..., 0]  # Supongamos que la modalidad T1c es el primer canal
+    verts_brain, faces_brain, _, _ = measure.marching_cubes(brain_volume, level=np.mean(brain_volume), step_size=2)
+
+    # Cerebro con la segmentación real
+    fig.add_trace(go.Mesh3d(
+        x=verts_brain[:, 0], y=verts_brain[:, 1], z=verts_brain[:, 2],
+        i=faces_brain[:, 0], j=faces_brain[:, 1], k=faces_brain[:, 2],
+        color='gray', opacity=0.1, flatshading=True, name='Cerebro (Real)'
+    ), row=1, col=1)
+
+    unique_classes_real = np.unique(real_segmentation)
+    for cls in unique_classes_real:
+        if cls == 0:  # Ignorar fondo
+            continue
+        verts, faces, _, _ = measure.marching_cubes(real_segmentation == cls, level=0.5, step_size=2)
+        fig.add_trace(go.Mesh3d(
+            x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
+            i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
+            color=class_colors.get(cls, 'yellow'),  # Usar el mismo color definido
+            opacity=0.5, flatshading=True, name=f'{class_descriptions.get(cls, f"Clase {cls}")} (Real)'
+        ), row=1, col=1)
+
+    # Cerebro con la segmentación predicha
+    fig.add_trace(go.Mesh3d(
+        x=verts_brain[:, 0], y=verts_brain[:, 1], z=verts_brain[:, 2],
+        i=faces_brain[:, 0], j=faces_brain[:, 1], k=faces_brain[:, 2],
+        color='gray', opacity=0.1, flatshading=True, name='Cerebro (Predicha)'
+    ), row=1, col=2)
+
+    unique_classes_predicted = np.unique(predicted_segmentation)
+    for cls in unique_classes_predicted:
+        if cls == 0:  # Ignorar fondo
+            continue
+        verts, faces, _, _ = measure.marching_cubes(predicted_segmentation == cls, level=0.5, step_size=2)
+        fig.add_trace(go.Mesh3d(
+            x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
+            i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
+            color=class_colors.get(cls, 'yellow'),  # Usar el mismo color definido
+            opacity=0.5, flatshading=True, name=f'{class_descriptions.get(cls, f"Clase {cls}")} (Predicha)'
+        ), row=1, col=2)
+
+    # Leyenda descriptiva para las clases
+    legend_items = [
+        f"<span style='color:{class_colors[cls]}'>{class_descriptions[cls]}: {class_colors[cls].capitalize()}</span>"
+        for cls in class_colors
+    ]
+    legend_html = "<br>".join(legend_items)
+
+    # Configuración del diseño de la gráfica
+    fig.update_layout(
+        title={
+            'text': f"Cerebro Completo con Segmentación Real y Predicha<br><br>{legend_html}",
+            'x': 0.5,
+            'xanchor': 'center',
+            'yanchor': 'top',
+        },
+        scene=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
+        scene2=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
+        height=800, width=1600, margin=dict(l=20, r=20, t=100, b=20)
+    )
+
+    # Guardar la gráfica en un archivo HTML
+    graph_html = f'graph_real_vs_predicted_with_brain_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
+    fig.write_html(os.path.join('static', graph_html))
+    print(f"Gráfica guardada en: {graph_html}")
+    return graph_html
+
