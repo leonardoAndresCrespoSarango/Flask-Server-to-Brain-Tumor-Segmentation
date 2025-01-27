@@ -155,23 +155,37 @@ def submit_feedback(patient_id):
         conn.close()
         return jsonify({'error': 'Patient not found'}), 404
 
-    # Guardar la encuesta en la base de datos
+    # Verificar si ya existe una encuesta para este paciente
+    cursor.execute('SELECT * FROM surveys WHERE patient_id = %s', (patient_id,))
+    survey = cursor.fetchone()
+
     try:
-        cursor.execute(
-            'INSERT INTO surveys (patient_id, ayudo_ia, comentarios_adicionales) '
-            'VALUES (%s, %s, %s)',
-            (patient_id, ayudo_ia, comentarios_adicionales)
-        )
-        conn.commit()
+        if survey:
+            # Si ya existe una encuesta, actualizamos los datos
+            cursor.execute(
+                'UPDATE surveys SET ayudo_ia = %s, comentarios_adicionales = %s, created_at = CURRENT_TIMESTAMP '
+                'WHERE patient_id = %s',
+                (ayudo_ia, comentarios_adicionales, patient_id)
+            )
+            conn.commit()
+            return jsonify({'message': 'Survey updated successfully'}), 200
+        else:
+            # Si no existe una encuesta, la creamos
+            cursor.execute(
+                'INSERT INTO surveys (patient_id, ayudo_ia, comentarios_adicionales) '
+                'VALUES (%s, %s, %s)',
+                (patient_id, ayudo_ia, comentarios_adicionales)
+            )
+            conn.commit()
 
-        # Actualizar el campo survey_completed a TRUE en la tabla patients
-        cursor.execute(
-            'UPDATE patients SET survey_completed = TRUE WHERE patient_id = %s',
-            (patient_id,)
-        )
-        conn.commit()
+            # Actualizar el campo survey_completed a TRUE en la tabla patients
+            cursor.execute(
+                'UPDATE patients SET survey_completed = TRUE WHERE patient_id = %s',
+                (patient_id,)
+            )
+            conn.commit()
 
-        return jsonify({'message': 'Feedback submitted and survey status updated successfully'})
+            return jsonify({'message': 'Feedback submitted and survey status updated successfully'}), 201
 
     except Exception as e:
         conn.rollback()

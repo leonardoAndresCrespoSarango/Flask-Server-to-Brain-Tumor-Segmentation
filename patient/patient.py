@@ -127,3 +127,50 @@ def update_survey_status(patient_id):
             conn.close()
         if cursor:
             cursor.close()
+
+
+@patient.route('/updateSurvey/<patient_id>', methods=['PUT'])
+def updateSurvey(patient_id):
+    try:
+        data = request.get_json()
+
+        # Obtener los campos que se quieren actualizar
+        ayudo_ia = data.get('ayudo_ia')
+        comentarios_adicionales = data.get('comentarios_adicionales')
+
+        # Conexión a la base de datos
+        conn = psycopg2.connect(dbname="tu_base_de_datos", user="tu_usuario", password="tu_contraseña", host="tu_host", port="tu_puerto")
+        cursor = conn.cursor()
+
+        # Verificar si existe una encuesta para el paciente
+        cursor.execute("SELECT id FROM surveys WHERE patient_id = %s", (patient_id,))
+        survey = cursor.fetchone()
+
+        if survey:
+            # Si la encuesta existe, se actualiza
+            cursor.execute("""
+                UPDATE surveys
+                SET ayudo_ia = %s, comentarios_adicionales = %s, created_at = CURRENT_TIMESTAMP
+                WHERE patient_id = %s
+            """, (ayudo_ia, comentarios_adicionales, patient_id))
+
+            conn.commit()
+            return jsonify({'message': 'Encuesta actualizada correctamente'}), 200
+        else:
+            # Si no existe una encuesta, se crea una nueva
+            cursor.execute("""
+                INSERT INTO surveys (patient_id, ayudo_ia, comentarios_adicionales)
+                VALUES (%s, %s, %s)
+            """, (patient_id, ayudo_ia, comentarios_adicionales))
+
+            conn.commit()
+            return jsonify({'message': 'Encuesta creada correctamente'}), 201
+
+    except Exception as e:
+        # En caso de error, se captura y se envía un mensaje
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        # Asegurarse de cerrar la conexión y cursor
+        cursor.close()
+        conn.close()
