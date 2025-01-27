@@ -1,7 +1,10 @@
 import os
+
+import h5py
 import plotly.graph_objects as go
 import plotly.subplots as psub
 import numpy as np
+from cv2 import resize
 from skimage import measure
 from datetime import datetime
 
@@ -491,3 +494,115 @@ def generate_graph6_no_prediction(test_img):
     graph6_html = f'graph6_no_prediction_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
     fig.write_html(os.path.join('static', graph6_html))
     return graph6_html
+
+
+def generate_graphDiagnostic(test_img):
+    modalities = ['T1c', 'T2w', 'FLAIR']
+    fig = psub.make_subplots(
+        rows=2, cols=2,
+        subplot_titles=modalities + ['Full Brain'],
+        specs=[[{'type': 'scene'}, {'type': 'scene'}],
+               [{'type': 'scene'}, {'type': 'scene'}]],
+        horizontal_spacing=0.05,
+        vertical_spacing=0.1
+    )
+
+    for idx, modality in enumerate(modalities):
+        volume = test_img[..., idx]
+        verts, faces, normals, values = measure.marching_cubes(volume, level=np.mean(volume), step_size=2)
+        fig.add_trace(go.Mesh3d(
+            x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
+            i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
+            intensity=values, colorscale='Viridis', opacity=0.3, flatshading=True, name=f'{modality} Brain'
+        ), row=idx // 2 + 1, col=idx % 2 + 1)
+
+    # Visualización del cerebro completo
+    full_brain_volume = test_img[..., 0]
+    verts, faces, normals, values = measure.marching_cubes(full_brain_volume, level=np.mean(full_brain_volume), step_size=2)
+    fig.add_trace(go.Mesh3d(
+        x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
+        i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
+        intensity=values, colorscale='Viridis', opacity=0.1, flatshading=True, name='Full Brain'
+    ), row=2, col=2)
+
+    fig.update_layout(
+        title="Visualización cerebral 3D para cada modalidad",
+        scene=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
+        scene2=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
+        scene3=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
+        scene4=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
+        height=1000, width=1500, margin=dict(l=20, r=20, t=40, b=20)
+    )
+
+    graph1_html = f'graph_diagnostic_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
+    fig.write_html(os.path.join('static', graph1_html))
+    return graph1_html
+def generate_graph_with_real_segmentation(test_img, real_segmentation):
+    """
+    Genera una gráfica 3D para las modalidades T1c, T2w, FLAIR y la segmentación real integrada en el cerebro.
+    """
+    modalities = ['T1c', 'T2w', 'FLAIR']
+    fig = psub.make_subplots(
+        rows=2, cols=2,
+        subplot_titles=modalities + ['Segmentación Real'],
+        specs=[[{'type': 'scene'}, {'type': 'scene'}],
+               [{'type': 'scene'}, {'type': 'scene'}]],
+        horizontal_spacing=0.05,
+        vertical_spacing=0.1
+    )
+
+    # Visualización para cada modalidad
+    for idx, modality in enumerate(modalities):
+        volume = test_img[..., idx]
+        verts, faces, normals, values = measure.marching_cubes(volume, level=np.mean(volume), step_size=2)
+        fig.add_trace(go.Mesh3d(
+            x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
+            i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
+            intensity=values, colorscale='Viridis', opacity=0.3, flatshading=True, name=f'{modality} Brain'
+        ), row=idx // 2 + 1, col=idx % 2 + 1)
+
+    # Visualización del cerebro completo
+    full_brain_volume = test_img[..., 0]
+    verts, faces, normals, values = measure.marching_cubes(full_brain_volume, level=np.mean(full_brain_volume), step_size=2)
+    fig.add_trace(go.Mesh3d(
+        x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
+        i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
+        intensity=values, colorscale='Viridis', opacity=0.1, flatshading=True, name='Full Brain'
+    ), row=2, col=2)
+
+    # Visualización de la segmentación real dentro del cerebro
+    unique_classes = np.unique(real_segmentation)
+    for cls in unique_classes:
+        if cls == 0:  # Ignorar fondo
+            continue
+
+        # Generar superficies 3D para cada clase
+        verts, faces, normals, values = measure.marching_cubes(real_segmentation == cls, level=0.5, step_size=2)
+        fig.add_trace(go.Mesh3d(
+            x=verts[:, 0],
+            y=verts[:, 1],
+            z=verts[:, 2],
+            i=faces[:, 0],
+            j=faces[:, 1],
+            k=faces[:, 2],
+            color='red' if cls == 1 else 'green' if cls == 2 else 'blue' if cls == 3 else 'yellow',
+            opacity=0.5,
+            flatshading=True,
+            name=f'Clase {cls} (Segmentación Real)'
+        ), row=2, col=2)
+
+    # Configuración del diseño de la gráfica
+    fig.update_layout(
+        title="Visualización cerebral 3D para cada modalidad y segmentación real",
+        scene=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
+        scene2=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
+        scene3=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
+        scene4=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
+        height=1000, width=1200, margin=dict(l=20, r=20, t=40, b=20)
+    )
+
+    # Guardar la gráfica en un archivo HTML
+    graph_html = f'graph_real_segmentation_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
+    fig.write_html(os.path.join('static', graph_html))
+    print(f"Gráfica guardada en: {graph_html}")
+    return graph_html

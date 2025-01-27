@@ -1,3 +1,6 @@
+from datetime import datetime
+
+import pytz
 from flask import jsonify, request, session, \
     Blueprint, send_from_directory
 
@@ -27,19 +30,59 @@ def add_diagnostic():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Insertar el diagnóstico y obtener el ID generado y la fecha de creación
+        # Verificar si ya existe un diagnóstico generado para el paciente
         cursor.execute(
             '''
-            INSERT INTO diagnostics (patient_id, user_id, has_cancer, description, is_generated) 
-            VALUES (%s, %s, %s, %s, %s) RETURNING id, created_at
+            SELECT id, report_path, created_at, updated_at FROM diagnostics 
+            WHERE patient_id = %s AND is_generated = TRUE
             ''',
-            (
-            diagnostic_info['patient_id'], user_id, diagnostic_info['has_cancer'], diagnostic_info['description'], True)
+            (diagnostic_info['patient_id'],)
         )
-        result = cursor.fetchone()
-        diagnostic_id = result[0]
-        created_at = result[1]
-        conn.commit()
+        existing_diagnostic = cursor.fetchone()
+
+        if existing_diagnostic:
+            # Actualizar el diagnóstico existente
+            diagnostic_id = existing_diagnostic[0]
+            created_at = existing_diagnostic[2]
+            updated_at = datetime.now(pytz.timezone('America/Guayaquil'))  # Hora actual ajustada a Ecuador
+
+            cursor.execute(
+                '''
+                UPDATE diagnostics 
+                SET has_cancer = %s, description = %s, user_id = %s, updated_at = %s 
+                WHERE id = %s
+                ''',
+                (
+                    diagnostic_info['has_cancer'],
+                    diagnostic_info['description'],
+                    user_id,
+                    updated_at,
+                    diagnostic_id
+                )
+            )
+            conn.commit()
+            message = 'Diagnóstico actualizado exitosamente'
+        else:
+            # Insertar un nuevo diagnóstico
+            cursor.execute(
+                '''
+                INSERT INTO diagnostics (patient_id, user_id, has_cancer, description, is_generated) 
+                VALUES (%s, %s, %s, %s, %s) RETURNING id, created_at
+                ''',
+                (
+                    diagnostic_info['patient_id'],
+                    user_id,
+                    diagnostic_info['has_cancer'],
+                    diagnostic_info['description'],
+                    True
+                )
+            )
+            result = cursor.fetchone()
+            diagnostic_id = result[0]
+            created_at = result[1]
+            updated_at = None  # No hay actualización en un diagnóstico recién creado
+            conn.commit()
+            message = 'Diagnóstico agregado exitosamente'
 
         # Obtener información adicional del usuario y del paciente
         cursor.execute('SELECT nombre, username FROM users WHERE id = %s', (user_id,))
@@ -58,7 +101,9 @@ def add_diagnostic():
             has_cancer=diagnostic_info['has_cancer'],
             description=diagnostic_info['description'],
             doctor_name=user_info[0],
-            doctor_username=user_info[1]
+            doctor_username=user_info[1],
+            created_at=created_at.astimezone(pytz.timezone('America/Guayaquil')),
+            updated_at=updated_at
         )
 
         # Actualizar la tabla `diagnostics` con la ruta del reporte
@@ -74,15 +119,15 @@ def add_diagnostic():
         conn.close()
 
         return jsonify({
-            'message': 'Diagnóstico agregado exitosamente y reporte generado',
+            'message': message + ' y reporte generado',
             'report_path': report_path,
             'created_at': created_at
         })
 
     except Exception as e:
-        print("Error al agregar el diagnóstico:", str(e))
+        print("Error al agregar o actualizar el diagnóstico:", str(e))
         return jsonify(
-            {"error": "Error al agregar el diagnóstico. Consulta los registros del servidor para más detalles."}), 500
+            {"error": "Error al agregar o actualizar el diagnóstico. Consulta los registros del servidor para más detalles."}), 500
 
 
 @diagnostic.route('/diagnostics/<patient_id>', methods=['GET'])

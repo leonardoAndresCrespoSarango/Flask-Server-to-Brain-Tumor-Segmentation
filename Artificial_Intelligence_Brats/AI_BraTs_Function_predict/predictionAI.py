@@ -2,14 +2,15 @@
 import os
 import threading
 
+import h5py
 from flask import Flask, jsonify, request, render_template, send_file, redirect, url_for, make_response, session, \
-    Blueprint
+    Blueprint, current_app
 import numpy as np
 from UNET import UNet
 from H5 import load_hdf5_file
 from graficas.graficasPloty import generate_graph1, generate_graph2, generate_graph3, generate_graph4, generate_graph5, \
-    generate_graph6, generate_graph6_no_prediction
-
+    generate_graph6, generate_graph6_no_prediction, generate_graphDiagnostic, generate_graph_with_real_segmentation
+import nibabel as nib
 predictionBratsAI = Blueprint('predictionBratsAI', __name__)
 IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS = 128, 128, 128, 3
 num_classes = 4
@@ -118,3 +119,80 @@ def generate_graph6_route():
     except Exception as e:
         print(f"Error al generar la gráfica 6: {str(e)}")
         return jsonify({"message": "Error al generar la gráfica 6. Consulta los registros del servidor para más detalles."}), 500
+
+
+@predictionBratsAI.route('/generate-graphDiagnostic', methods=['POST'])
+def graphDiagnostic_route():
+    if 'user_id' not in session:
+        return jsonify({"message": "Usuario no autenticado"}), 401
+
+    user_id = session['user_id']
+    patient_id = request.json.get('patient_id')
+
+    if not patient_id:
+        return jsonify({'message': 'Patient ID is missing'}), 400
+
+    h5_filename = os.path.join('processed_files', f'{patient_id}.h5')
+
+    if not os.path.exists(h5_filename):
+        return jsonify({'message': f'El archivo HDF5 {h5_filename} no fue encontrado.'}), 404
+
+    try:
+        # Cargar las imágenes desde el archivo HDF5
+        test_img = load_hdf5_file(h5_filename)
+        if test_img is None:
+            return jsonify({'message': 'Error al cargar el archivo HDF5.'}), 500
+
+        # Generar la gráfica 6 (solo imágenes del paciente)
+        graph6_html = generate_graphDiagnostic(test_img)
+
+        # Generar la URL para la gráfica
+        graph6_url = url_for('static', filename=graph6_html, _external=True)
+
+        return jsonify({
+            "htmlUrl3D": graph6_url
+        })
+
+    except Exception as e:
+        print(f"Error al generar la gráfica 3D: {str(e)}")
+        return jsonify({"message": "Error al generar la gráfica 6. Consulta los registros del servidor para más detalles."}), 500
+
+
+@predictionBratsAI.route('/generate-graphSegmentation', methods=['POST'])
+def graphSegmentation_route():
+    if 'user_id' not in session:
+        return jsonify({"message": "Usuario no autenticado"}), 401
+
+    user_id = session['user_id']
+    patient_id = request.json.get('patient_id')
+
+    if not patient_id:
+        return jsonify({'message': 'Patient ID is missing'}), 400
+
+    h5_filename = os.path.join('processed_files', f'{patient_id}_withSeg.h5')
+
+    if not os.path.exists(h5_filename):
+        return jsonify({'message': f'El archivo HDF5 {h5_filename} no fue encontrado.'}), 404
+
+    try:
+        # Cargar las imágenes y la segmentación desde el archivo HDF5
+        with h5py.File(h5_filename, 'r') as hf:
+            if 'images' not in hf or 'masks' not in hf:
+                return jsonify({'message': 'El archivo HDF5 no contiene imágenes o segmentación.'}), 400
+
+            test_img = hf['images'][:]
+            real_segmentation = np.argmax(hf['masks'][:], axis=-1)  # Convertir la segmentación de one-hot a clases
+
+        # Generar la gráfica con la segmentación real
+        graphS_html = generate_graph_with_real_segmentation(test_img, real_segmentation)
+
+        # Generar la URL para la gráfica
+        graphS_url = url_for('static', filename=graphS_html, _external=True)
+
+        return jsonify({
+            "htmlUrlS": graphS_url
+        })
+
+    except Exception as e:
+        print(f"Error al generar la gráfica 3D: {str(e)}")
+        return jsonify({"message": "Error al generar la gráfica. Consulta los registros del servidor para más detalles."}), 500
