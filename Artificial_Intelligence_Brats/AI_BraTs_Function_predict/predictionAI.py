@@ -276,5 +276,5 @@ def graphSegmentation_route():
         })
 
     except Exception as e:
-        print(f"Error al generar la gráfica 3D: {str(e)}")
+        print(f"Error al generar la gráfica 3-D: {str(e)}")
         return jsonify({"message": "Error al generar la gráfica. Consulta los registros del servidor para más detalles."}), 500
