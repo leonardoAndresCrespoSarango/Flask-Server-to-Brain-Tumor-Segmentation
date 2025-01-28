@@ -58,7 +58,6 @@ def create_tables():
         id SERIAL PRIMARY KEY,
         patient_id VARCHAR(255) NOT NULL,
         user_id INT NOT NULL,
-        title TEXT NOT NULL,
         description TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id),
@@ -116,30 +115,38 @@ def create_tables():
     conn.commit()
     # Modificar la tabla 'diagnostics' si es necesario
     cursor.execute("""
-            DO $$ 
-            BEGIN
-                -- Eliminar columna 'title' si existe
-                IF EXISTS (
-                    SELECT 1
-                    FROM information_schema.columns
-                    WHERE table_name = 'diagnostics' AND column_name = 'title'
-                ) THEN
-                    ALTER TABLE diagnostics DROP COLUMN title;
-                END IF;
+        DO $$
+        BEGIN
+            -- Crear el tipo ENUM si no existe
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_type
+                WHERE typname = 'cancer_status'
+            ) THEN
+                CREATE TYPE cancer_status AS ENUM ('no se detecta cancer', 'cancer detectado', 'diagnostico incierto');
+            END IF;
 
-                -- Agregar columna 'has_cancer' si no existe
-                IF NOT EXISTS (
-                    SELECT 1
-                    FROM information_schema.columns
-                    WHERE table_name = 'diagnostics' AND column_name = 'has_cancer'
-                ) THEN
-                    ALTER TABLE diagnostics ADD COLUMN has_cancer BOOLEAN DEFAULT FALSE;
-                END IF;
-            END
-            $$;
-            """)
+            -- Eliminar la columna has_cancer si existe
+            IF EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'diagnostics' AND column_name = 'has_cancer'
+            ) THEN
+                ALTER TABLE diagnostics DROP COLUMN has_cancer;
+            END IF;
+
+            -- Agregar la nueva columna cancer_status si no existe
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'diagnostics' AND column_name = 'cancer_status'
+            ) THEN
+                ALTER TABLE diagnostics ADD COLUMN cancer_status cancer_status DEFAULT 'diagnostico incierto';
+            END IF;
+        END
+        $$;
+    """)
     conn.commit()
-
     # Agregar columna 'report_path' si no existe en la tabla reports
     cursor.execute("""
         DO $$

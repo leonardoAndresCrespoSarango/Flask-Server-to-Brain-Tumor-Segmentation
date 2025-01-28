@@ -9,7 +9,7 @@ import numpy as np
 from UNET import UNet
 from H5 import load_hdf5_file
 from graficas.graficasPloty import generate_graph1, generate_graph2, generate_graph3, generate_graph4, generate_graph5, \
-    generate_graph6, generate_graph6_no_prediction, generate_graphDiagnostic, generate_graph_with_real_segmentation, \
+    generate_graph6, generate_graph6_no_prediction, generate_graphDiagnostic,  \
      generate_graph_real_and_predicted_segmentation_with_brain
 import nibabel as nib
 predictionBratsAI = Blueprint('predictionBratsAI', __name__)
