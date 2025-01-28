@@ -62,7 +62,7 @@ def create_tables():
         description TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (patient_id) REFERENCES patients(patient_id)
+        FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE CASCADE
     );
     CREATE TABLE IF NOT EXISTS reports (
         id SERIAL PRIMARY KEY,
@@ -91,11 +91,11 @@ def create_tables():
     CREATE TABLE IF NOT EXISTS surveys (
     id SERIAL PRIMARY KEY,
     patient_id VARCHAR(255) NOT NULL, -- Usar VARCHAR(255) para permitir IDs alfanuméricos
-    ayudo_ia BOOLEAN NOT NULL,        -- Indica si la IA ayudó a mejorar el diagnósticoss 
+    ayudo_ia VARCHAR(50) NOT NULL,    -- Cambiado de BOOLEAN a VARCHAR(50) 6para almacenar las opciones
     mejoro_ia BOOLEAN NOT NULL,
-    comentarios_adicionales TEXT,     -- Comentarios adicionales sobre el proceso
+    comentarios_adicionales TEXT,     -- cComentarios adicionales sobre el proceso
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(patient_id), -- Asegúrate de que patients.patient_id también sea VARCHAR
+    FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE CASCADE, -- Aquí se agrega ON DELETE CASCADE
     CONSTRAINT unique_patient_id UNIQUE (patient_id)  -- Restringe la tabla a solo una encuesta por paciente
 );
     """)

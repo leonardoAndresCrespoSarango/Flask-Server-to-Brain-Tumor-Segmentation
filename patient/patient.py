@@ -71,6 +71,38 @@ def get_patients():
         print("Error al recuperar los pacientes:", str(e))
         return jsonify({"error": "Error al recuperar los pacientes. Consulta los registros del servidor para más detalles."}), 500
 
+#PRUERBA DE ENDPOINT ELIMINAR PACIENTE POR ID
+@patient.route('/delete-patient/<string:patient_id>', methods=['DELETE'])
+def delete_patient(patient_id):
+    if 'user_id' not in session:
+        return jsonify({"error": "Usuario no autenticado"}), 401
+
+    user_id = session['user_id']
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verifica si el paciente existe y pertenece al usuario actual
+        cursor.execute('SELECT patient_id FROM patients WHERE patient_id = %s AND user_id = %s', (patient_id, user_id))
+        patient = cursor.fetchone()
+
+        if not patient:
+            return jsonify({"error": "Paciente no encontrado o no autorizado"}), 404
+
+        # Elimina el paciente de la base de datos
+        cursor.execute('DELETE FROM patients WHERE patient_id = %s AND user_id = %s', (patient_id, user_id))
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({'message': f'Paciente con ID {patient_id} eliminado exitosamente'})
+
+    except Exception as e:
+        print("Error al eliminar el paciente:", str(e))
+        return jsonify({"error": "Error al eliminar el paciente. Consulta los registros del servidor para más detalles."}), 500
+##fin delete patient
 
 @patient.route('/patients/<patient_id>/survey-status', methods=['PUT'])
 def update_survey_status(patient_id):
