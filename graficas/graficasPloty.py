@@ -9,10 +9,10 @@ from skimage import measure
 from datetime import datetime
 
 def generate_graph1(test_img, test_prediction_argmax):
-    modalities = ['T1c', 'T2w', 'FLAIR']
+    modalities = ['Modalidad T1c', 'Modalidad T2w', 'Modalidad FLAIR']
     fig = psub.make_subplots(
         rows=2, cols=2,
-        subplot_titles=modalities + ['Segmentación Predicha'],
+        subplot_titles=modalities + ['Predicción del Modelo de IA'],
         specs=[[{'type': 'scene'}, {'type': 'scene'}],
                [{'type': 'scene'}, {'type': 'scene'}]],
         horizontal_spacing=0.05,
@@ -328,7 +328,7 @@ def generate_graph5(test_img, test_prediction_argmax):
 # Función para generar la sexta gráfica
 def generate_graph6(test_img, test_prediction_argmax):
     class_names = ["no Tumor", "Nucleo Necrotico", "Edema", "Nucleo Activo"]
-    modalities = ['T1c', 'T2w', 'FLAIR']
+    modalities = ['Modalidad T1c', 'Modalidad T2w', 'Modalidad FLAIR']
     modality_index = {modality: i for i, modality in enumerate(modalities)}
 
     # Crear una copia de test_prediction_argmax con los nombres de las clases
@@ -339,12 +339,12 @@ def generate_graph6(test_img, test_prediction_argmax):
     # Crear la figura inicial con dos subplots
     fig = psub.make_subplots(
         rows=1, cols=2,
-        subplot_titles=("MRI Paciente", "Predicción del paciente"),
+        subplot_titles=("Imágenes Médicas del Paciente (MRI)", "Predicción del Modelo de IA"),
         specs=[[{"type": "heatmap"}, {"type": "heatmap"}]]
     )
 
     # Añadir trazas iniciales (modalidad T1c y primer slice por defecto)
-    fig.add_trace(go.Heatmap(z=test_img[:, :, 0, modality_index['T1c']], colorscale='gray', showscale=False), row=1, col=1)
+    fig.add_trace(go.Heatmap(z=test_img[:, :, 0, modality_index['Modalidad T1c']], colorscale='gray', showscale=False), row=1, col=1)
     fig.add_trace(go.Heatmap(z=test_prediction_argmax[:, :, 0], showscale=True, colorscale='Viridis',
                              text=test_prediction_named[:, :, 0], hoverinfo='text'), row=1, col=2)
 
@@ -398,10 +398,29 @@ def generate_graph6(test_img, test_prediction_argmax):
         )
     ]
 
+    # Añadir textos explicativos (anotaciones)
+    annotations = [
+        dict(
+            text="Selecciona una modalidad:",
+            x=0.2, y=0.5,
+            xref="paper", yref="paper",
+            showarrow=False,
+            font=dict(size=12, color="black")
+        ),
+        dict(
+            text="Desliza para cambiar de rebanada:",
+            x=0.5, y=-0.15,
+            xref="paper", yref="paper",
+            showarrow=False,
+            font=dict(size=12, color="black")
+        )
+    ]
+
     # Actualizar el layout de la figura
     fig.update_layout(
         sliders=sliders,
         updatemenus=updatemenus,
+        annotations=annotations,
         title="Visualización interactiva de rebanadas",
         height=800,
         width=1200,
@@ -416,6 +435,7 @@ def generate_graph6(test_img, test_prediction_argmax):
     fig.write_html(os.path.join('static', graph6_html))
     return graph6_html
 
+
 def generate_graph6_no_prediction(test_img):
     import plotly.graph_objects as go
     import plotly.subplots as psub
@@ -423,7 +443,7 @@ def generate_graph6_no_prediction(test_img):
     from datetime import datetime
     import numpy as np
 
-    modalities = ['T1c', 'T2w', 'FLAIR']
+    modalities = ['Modalidad T1c', 'Modalidad T2w', 'Modalidad FLAIR']
     modality_index = {modality: i for i, modality in enumerate(modalities)}
 
     # Crear la figura con tantas columnas como modalidades
@@ -473,22 +493,40 @@ def generate_graph6_no_prediction(test_img):
 
     sliders = [dict(
         active=0,
-        pad={"t": 50},
+        pad={"t": 50},  # Espaciado alrededor del slider
         steps=steps
     )]
 
-    # Actualizar el layout de la figura
-    fig.update_layout(
+    # Añadir texto explicativo para el slider (anotación)
+    annotations = [
+        dict(
+            text="Desliza para cambiar entre rebanadas del cerebro",
+            x=0.5, y=-0.15,  # Posicionar encima del slider
+            xref="paper", yref="paper",
+            showarrow=False,
+            font=dict(size=12, color="black")
+        )
+    ]
+
+    # Actualizar el layout de la figura para ocultar los ejes
+    layout_updates = dict(
         sliders=sliders,
-        title="Visualización interactiva de rebanadas (Modalidades MRI - Lado a Lado)",
+        annotations=annotations,
+        title="Visualización interactiva de rebanadas (Modalidades T1c, T2w y FLAIR)",
         height=500,
         width=1500,  # Ajustar el ancho para acomodar las gráficas
         autosize=True,
-        margin=dict(l=20, r=20, t=40, b=20),
+        margin=dict(l=20, r=20, t=40, b=80),  # Espaciado inferior para el slider
         plot_bgcolor='white',
-        xaxis=dict(showgrid=False),
-        yaxis=dict(showgrid=False),
     )
+
+    # Configuración para ocultar los ejes en cada subtrama
+    for i in range(1, len(modalities) + 1):
+        layout_updates[f'xaxis{i}'] = dict(showgrid=False, zeroline=False, visible=False)
+        layout_updates[f'yaxis{i}'] = dict(showgrid=False, zeroline=False, visible=False)
+
+    # Actualizar el layout de la figura
+    fig.update_layout(**layout_updates)
 
     # Guardar la gráfica como un archivo HTML
     graph6_html = f'graph6_no_prediction_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
@@ -497,7 +535,7 @@ def generate_graph6_no_prediction(test_img):
 
 
 def generate_graphDiagnostic(test_img):
-    modalities = ['T1c', 'T2w', 'FLAIR']
+    modalities = ['Modalidad T1c', 'Modalidad T2w', 'Modalidad FLAIR']
     fig = psub.make_subplots(
         rows=2, cols=2,
         subplot_titles=modalities + ['Full Brain'],
@@ -537,83 +575,13 @@ def generate_graphDiagnostic(test_img):
     graph1_html = f'graph_diagnostic_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
     fig.write_html(os.path.join('static', graph1_html))
     return graph1_html
-def generate_graph_with_real_segmentation(test_img, real_segmentation):
-    """
-    Genera una gráfica 3D para las modalidades T1c, T2w, FLAIR y la segmentación real integrada en el cerebro.
-    """
-    modalities = ['T1c', 'T2w', 'FLAIR']
-    fig = psub.make_subplots(
-        rows=2, cols=2,
-        subplot_titles=modalities + ['Segmentación Real'],
-        specs=[[{'type': 'scene'}, {'type': 'scene'}],
-               [{'type': 'scene'}, {'type': 'scene'}]],
-        horizontal_spacing=0.05,
-        vertical_spacing=0.1
-    )
-
-    # Visualización para cada modalidad
-    for idx, modality in enumerate(modalities):
-        volume = test_img[..., idx]
-        verts, faces, normals, values = measure.marching_cubes(volume, level=np.mean(volume), step_size=2)
-        fig.add_trace(go.Mesh3d(
-            x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
-            i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-            intensity=values, colorscale='Viridis', opacity=0.3, flatshading=True, name=f'{modality} Brain'
-        ), row=idx // 2 + 1, col=idx % 2 + 1)
-
-    # Visualización del cerebro completo
-    full_brain_volume = test_img[..., 0]
-    verts, faces, normals, values = measure.marching_cubes(full_brain_volume, level=np.mean(full_brain_volume), step_size=2)
-    fig.add_trace(go.Mesh3d(
-        x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
-        i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-        intensity=values, colorscale='Viridis', opacity=0.1, flatshading=True, name='Full Brain'
-    ), row=2, col=2)
-
-    # Visualización de la segmentación real dentro del cerebro
-    unique_classes = np.unique(real_segmentation)
-    for cls in unique_classes:
-        if cls == 0:  # Ignorar fondo
-            continue
-
-        # Generar superficies 3D para cada clase
-        verts, faces, normals, values = measure.marching_cubes(real_segmentation == cls, level=0.5, step_size=2)
-        fig.add_trace(go.Mesh3d(
-            x=verts[:, 0],
-            y=verts[:, 1],
-            z=verts[:, 2],
-            i=faces[:, 0],
-            j=faces[:, 1],
-            k=faces[:, 2],
-            color='red' if cls == 1 else 'green' if cls == 2 else 'blue' if cls == 3 else 'yellow',
-            opacity=0.5,
-            flatshading=True,
-            name=f'Clase {cls} (Segmentación Real)'
-        ), row=2, col=2)
-
-    # Configuración del diseño de la gráfica
-    fig.update_layout(
-        title="Visualización cerebral 3D para cada modalidad y segmentación real",
-        scene=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
-        scene2=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
-        scene3=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
-        scene4=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
-        height=1000, width=1200, margin=dict(l=20, r=20, t=40, b=20)
-    )
-
-    # Guardar la gráfica en un archivo HTML
-    graph_html = f'graph_real_segmentation_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
-    fig.write_html(os.path.join('static', graph_html))
-    print(f"Gráfica guardada en: {graph_html}")
-    return graph_html
-
 
 def generate_graph_real_and_predicted_segmentation_with_brain(test_img, real_segmentation, predicted_segmentation):
     """
     Genera una gráfica 3D con dos cerebros completos:
     - Uno mostrando la segmentación real sobre el cerebro.
     - Otro mostrando la segmentación predicha sobre el cerebro.
-    Incluye una leyenda para las clases.
+    Incluye checkboxes para seleccionar clases y una leyenda para los colores.
     """
     # Colores consistentes para ambas segmentaciones
     class_colors = {
@@ -630,7 +598,7 @@ def generate_graph_real_and_predicted_segmentation_with_brain(test_img, real_seg
 
     fig = psub.make_subplots(
         rows=1, cols=2,
-        subplot_titles=['Segmentación Real con Cerebro', 'Segmentación Predicha con Cerebro'],
+        subplot_titles=['Segmentación Real', 'Predicción del Modelo de IA'],
         specs=[[{'type': 'scene'}, {'type': 'scene'}]],
         horizontal_spacing=0.1
     )
@@ -646,16 +614,17 @@ def generate_graph_real_and_predicted_segmentation_with_brain(test_img, real_seg
         color='gray', opacity=0.1, flatshading=True, name='Cerebro (Real)'
     ), row=1, col=1)
 
-    unique_classes_real = np.unique(real_segmentation)
-    for cls in unique_classes_real:
+    # Agregar trazas para cada clase en la segmentación real
+    for cls in np.unique(real_segmentation):
         if cls == 0:  # Ignorar fondo
             continue
         verts, faces, _, _ = measure.marching_cubes(real_segmentation == cls, level=0.5, step_size=2)
         fig.add_trace(go.Mesh3d(
             x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
             i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-            color=class_colors.get(cls, 'yellow'),  # Usar el mismo color definido
-            opacity=0.5, flatshading=True, name=f'{class_descriptions.get(cls, f"Clase {cls}")} (Real)'
+            color=class_colors.get(cls, 'yellow'),
+            opacity=0.5, flatshading=True, name=f'{class_descriptions[cls]} (Real)',
+            visible=True
         ), row=1, col=1)
 
     # Cerebro con la segmentación predicha
@@ -665,36 +634,80 @@ def generate_graph_real_and_predicted_segmentation_with_brain(test_img, real_seg
         color='gray', opacity=0.1, flatshading=True, name='Cerebro (Predicha)'
     ), row=1, col=2)
 
-    unique_classes_predicted = np.unique(predicted_segmentation)
-    for cls in unique_classes_predicted:
+    # Agregar trazas para cada clase en la segmentación predicha
+    for cls in np.unique(predicted_segmentation):
         if cls == 0:  # Ignorar fondo
             continue
         verts, faces, _, _ = measure.marching_cubes(predicted_segmentation == cls, level=0.5, step_size=2)
         fig.add_trace(go.Mesh3d(
             x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
             i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-            color=class_colors.get(cls, 'yellow'),  # Usar el mismo color definido
-            opacity=0.5, flatshading=True, name=f'{class_descriptions.get(cls, f"Clase {cls}")} (Predicha)'
+            color=class_colors.get(cls, 'yellow'),
+            opacity=0.5, flatshading=True, name=f'{class_descriptions[cls]} (Predicha)',
+            visible=True
         ), row=1, col=2)
 
-    # Leyenda descriptiva para las clases
-    legend_items = [
-        f"<span style='color:{class_colors[cls]}'>{class_descriptions[cls]}: {class_colors[cls].capitalize()}</span>"
-        for cls in class_colors
+    # Crear leyenda explicando los colores de las clases
+    annotations = [
+        dict(
+            text=f"<b>Regiones Tumorales:</b> "
+                 f"<span style='color:red'>Núcleo Necrótico</span>, "
+                 f"<span style='color:green'>Edema</span>, "
+                 f"<span style='color:blue'>Tumor Activo</span>",
+            x=0.5,
+            y=-0.1,
+            xref="paper",
+            yref="paper",
+            showarrow=False,
+            font=dict(size=12)
+        )
     ]
-    legend_html = "<br>".join(legend_items)
 
-    # Configuración del diseño de la gráfica
+    # Crear checkboxes para controlar la visibilidad
+    buttons = []
+    for cls, description in class_descriptions.items():
+        buttons.append(
+            dict(
+                method="update",
+                label=f"{description} (Real y Predicha)",
+                args=[
+                    {
+                        "visible": [
+                            trace.name.endswith(f"{description} (Real)") or trace.name.endswith(f"{description} (Predicha)")
+                            for trace in fig.data
+                        ]
+                    }
+                ]
+            )
+        )
+    buttons.append(
+        dict(
+            method="update",
+            label="Mostrar Todas",
+            args=[
+                {"visible": [True] * len(fig.data)}
+            ]
+        )
+    )
+
+    # Configurar el layout con botones y leyenda
     fig.update_layout(
-        title={
-            'text': f"Cerebro Completo con Segmentación Real y Predicha<br><br>{legend_html}",
-            'x': 0.5,
-            'xanchor': 'center',
-            'yanchor': 'top',
-        },
+        updatemenus=[
+            dict(
+                type="buttons",
+                buttons=buttons,
+                direction="right",
+                x=0.5,
+                y=-0.2,
+                xanchor="center",
+                yanchor="top"
+            )
+        ],
+        annotations=annotations,
+        title="Segmentación Real y Predicha por IA",
         scene=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
         scene2=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectratio=dict(x=1, y=1, z=1)),
-        height=800, width=1600, margin=dict(l=20, r=20, t=100, b=20)
+        height=900, width=1600, margin=dict(l=20, r=20, t=100, b=50)
     )
 
     # Guardar la gráfica en un archivo HTML
@@ -702,4 +715,5 @@ def generate_graph_real_and_predicted_segmentation_with_brain(test_img, real_seg
     fig.write_html(os.path.join('static', graph_html))
     print(f"Gráfica guardada en: {graph_html}")
     return graph_html
+
 

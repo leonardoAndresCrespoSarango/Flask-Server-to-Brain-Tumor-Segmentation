@@ -54,7 +54,7 @@ def get_patients():
                        p.numero_historia_clinica,
                        p.survey_completed,
                        d.is_generated,
-                       d.has_cancer,
+                       d.cancer_status,
                        d.report_path
                    FROM patients p
                    LEFT JOIN diagnostics d 

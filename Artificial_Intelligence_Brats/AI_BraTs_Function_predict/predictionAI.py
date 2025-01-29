@@ -9,7 +9,7 @@ import numpy as np
 from UNET import UNet
 from H5 import load_hdf5_file
 from graficas.graficasPloty import generate_graph1, generate_graph2, generate_graph3, generate_graph4, generate_graph5, \
-    generate_graph6, generate_graph6_no_prediction, generate_graphDiagnostic, generate_graph_with_real_segmentation, \
+    generate_graph6, generate_graph6_no_prediction, generate_graphDiagnostic,  \
      generate_graph_real_and_predicted_segmentation_with_brain
 import nibabel as nib
 predictionBratsAI = Blueprint('predictionBratsAI', __name__)
@@ -276,5 +276,5 @@ def graphSegmentation_route():
         })
 
     except Exception as e:
-        print(f"Error al generar la gráfica 3D: {str(e)}")
+        print(f"Error al generar la gráfica 3-D: {str(e)}")
         return jsonify({"message": "Error al generar la gráfica. Consulta los registros del servidor para más detalles."}), 500

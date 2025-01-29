@@ -22,10 +22,12 @@ def add_diagnostic():
 
     diagnostic_info = {
         'patient_id': data.get('patient_id'),
-        'has_cancer': data.get('has_cancer'),  # Espera un booleano: True (tiene cáncer) o False (no tiene cáncer)
+        'cancer_status': data.get('cancer_status'),  # Ahora es un texto del ENUM
         'description': data.get('description')
     }
 
+    if diagnostic_info['cancer_status'] not in ['cancer detectado', 'no se detecta cancer', 'diagnostico incierto']:
+        return jsonify({"error": "Valor inválido para cancer_status"}), 400
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -48,12 +50,12 @@ def add_diagnostic():
 
             cursor.execute(
                 '''
-                UPDATE diagnostics 
-                SET has_cancer = %s, description = %s, user_id = %s, updated_at = %s 
+               UPDATE diagnostics 
+                SET cancer_status = %s, description = %s, user_id = %s, updated_at = %s 
                 WHERE id = %s
                 ''',
                 (
-                    diagnostic_info['has_cancer'],
+                    diagnostic_info['cancer_status'],
                     diagnostic_info['description'],
                     user_id,
                     updated_at,
@@ -66,13 +68,13 @@ def add_diagnostic():
             # Insertar un nuevo diagnóstico
             cursor.execute(
                 '''
-                INSERT INTO diagnostics (patient_id, user_id, has_cancer, description, is_generated) 
+                INSERT INTO diagnostics (patient_id, user_id, cancer_status, description, is_generated) 
                 VALUES (%s, %s, %s, %s, %s) RETURNING id, created_at
                 ''',
                 (
                     diagnostic_info['patient_id'],
                     user_id,
-                    diagnostic_info['has_cancer'],
+                    diagnostic_info['cancer_status'],
                     diagnostic_info['description'],
                     True
                 )
@@ -98,7 +100,7 @@ def add_diagnostic():
         report_path = generate_medical_report(
             patient_id=diagnostic_info['patient_id'],
             patient_history=patient_info[0],
-            has_cancer=diagnostic_info['has_cancer'],
+            cancer_status = diagnostic_info['cancer_status'],
             description=diagnostic_info['description'],
             doctor_name=user_info[0],
             doctor_username=user_info[1],
@@ -141,7 +143,7 @@ def get_diagnostics(patient_id):
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         # Recuperar el campo booleano `has_cancer` en lugar de `title`
-        cursor.execute('SELECT id, has_cancer, description, created_at FROM diagnostics WHERE patient_id = %s AND user_id = %s', (patient_id, user_id))
+        cursor.execute('SELECT id, cancer_status, description, created_at FROM diagnostics WHERE patient_id = %s AND user_id = %s', (patient_id, user_id))
         diagnostics = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -167,7 +169,7 @@ def update_diagnostic():
         conn = get_db_connection()
         cursor = conn.cursor()
         # Actualizar el diagnóstico con el campo `has_cancer`
-        cursor.execute('UPDATE diagnostics SET has_cancer = %s, description = %s WHERE patient_id = %s AND user_id = %s',
+        cursor.execute('UPDATE diagnostics SET cancer_status = %s, description = %s WHERE patient_id = %s AND user_id = %s',
                        (has_cancer, description, patient_id, session['user_id']))
         conn.commit()
         cursor.close()
@@ -189,7 +191,7 @@ def get_diagnostic(patient_id):
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         # Recuperar el campo `has_cancer` en lugar de `title`
-        cursor.execute('SELECT has_cancer, description, is_generated FROM diagnostics WHERE patient_id = %s AND user_id = %s',
+        cursor.execute('SELECT cancer_status, description, is_generated FROM diagnostics WHERE patient_id = %s AND user_id = %s',
                        (patient_id, session['user_id']))
         diagnostic = cursor.fetchone()
         cursor.close()
