@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from DataBase import create_tables, get_db_connection
 from H5 import load_hdf5_file
-from moviepy.editor import ImageSequenceClip
+#from moviepy.editor import ImageSequenceClip
 import psycopg2
 
 from UNET import UNet
@@ -101,8 +101,8 @@ def predict():
             plt.imsave(temp_image_path, image)
 
         video_filename = f"static/video_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
-        clip = ImageSequenceClip(images, fps=20)
-        clip.write_videofile(video_filename, codec='libx264', audio=False)
+        #clip = ImageSequenceClip(images, fps=20)
+        #clip.write_videofile(video_filename, codec='libx264', audio=False)
 
         mri_images = [f"static/temp_image_{i}.png" for i in range(len(images))]
 

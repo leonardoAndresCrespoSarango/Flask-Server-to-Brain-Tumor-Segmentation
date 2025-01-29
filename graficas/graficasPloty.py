@@ -4,7 +4,7 @@ import h5py
 import plotly.graph_objects as go
 import plotly.subplots as psub
 import numpy as np
-from cv2 import resize
+#from cv2 import resize
 from skimage import measure
 from datetime import datetime
 

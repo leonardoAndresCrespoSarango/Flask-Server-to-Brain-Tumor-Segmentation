@@ -19,23 +19,10 @@ import h5py
 import glob
 import secrets
 from datetime import datetime, timedelta
-from werkzeug.utils import secure_filename
-import nibabel as nib
-import matplotlib.pyplot as plt
-
-from DataBase import create_tables, get_db_connection
-from UNET import UNet
-from H5 import load_hdf5_file
-from moviepy.editor import ImageSequenceClip
-import psycopg2
 from psycopg2.extras import RealDictCursor
-from graficas.graficasPloty import generate_graph1, generate_graph2, generate_graph3, generate_graph4, generate_graph5, \
-    generate_graph6, generate_graph6_no_prediction
-from latex.plantilla import create_medical_report
 import bcrypt
 import smtplib
 from email.mime.text import MIMEText
-from reports.reportePDF import PDF
 from DataBase import get_db_connection
 
 # Crear un Blueprint
