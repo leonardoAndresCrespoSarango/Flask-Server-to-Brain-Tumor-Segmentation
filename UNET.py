@@ -1,32 +1,30 @@
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Conv3D, Conv3DTranspose, Dropout, MaxPooling3D, concatenate
 import keras.backend as K
+import tensorflow as tf
 def dice_coef(y_true, y_pred, smooth=1.0):
     class_num = 4
     total_loss = 0
     for i in range(class_num):
-        y_true_f = K.flatten(y_true[:, :, :, i])
-        y_pred_f = K.flatten(y_pred[:, :, :, i])
+        y_true_f = tf.keras.backend.flatten(y_true[:, :, :, i])  # ✅ Cambiado
+        y_pred_f = tf.keras.backend.flatten(y_pred[:, :, :, i])  # ✅ Cambiado
         intersection = K.sum(y_true_f * y_pred_f)
         loss = ((2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth))
         total_loss += loss
-    total_loss /= class_num
-    return total_loss
+    return total_loss / class_num
 
 
 def dice_coef_necrotic(y_true, y_pred, epsilon=1e-6):
-    intersection = K.sum(K.abs(y_true[:, :, :, 1] * y_pred[:, :, :, 1]))
-    return (2. * intersection) / (K.sum(K.square(y_true[:, :, :, 1])) + K.sum(K.square(y_pred[:, :, :, 1])) + epsilon)
-
+    intersection = K.sum(K.abs(tf.keras.backend.flatten(y_true[:, :, :, 1] * y_pred[:, :, :, 1])))
+    return (2. * intersection) / (K.sum(K.square(tf.keras.backend.flatten(y_true[:, :, :, 1]))) + K.sum(K.square(tf.keras.backend.flatten(y_pred[:, :, :, 1]))) + epsilon)
 
 def dice_coef_edema(y_true, y_pred, epsilon=1e-6):
-    intersection = K.sum(K.abs(y_true[:, :, :, 2] * y_pred[:, :, :, 2]))
-    return (2. * intersection) / (K.sum(K.square(y_true[:, :, :, 2])) + K.sum(K.square(y_pred[:, :, :, 2])) + epsilon)
-
+    intersection = K.sum(K.abs(tf.keras.backend.flatten(y_true[:, :, :, 2] * y_pred[:, :, :, 2])))
+    return (2. * intersection) / (K.sum(K.square(tf.keras.backend.flatten(y_true[:, :, :, 2]))) + K.sum(K.square(tf.keras.backend.flatten(y_pred[:, :, :, 2]))) + epsilon)
 
 def dice_coef_enhancing(y_true, y_pred, epsilon=1e-6):
-    intersection = K.sum(K.abs(y_true[:, :, :, 3] * y_pred[:, :, :, 3]))
-    return (2. * intersection) / (K.sum(K.square(y_true[:, :, :, 3])) + K.sum(K.square(y_pred[:, :, :, 3])) + epsilon)
+    intersection = K.sum(K.abs(tf.keras.backend.flatten(y_true[:, :, :, 3] * y_pred[:, :, :, 3])))
+    return (2. * intersection) / (K.sum(K.square(tf.keras.backend.flatten(y_true[:, :, :, 3]))) + K.sum(K.square(tf.keras.backend.flatten(y_pred[:, :, :, 3]))) + epsilon)
 
 
 def precision(y_true, y_pred):

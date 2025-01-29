@@ -204,6 +204,20 @@ def graphDiagnostic_route():
         return jsonify({"message": "Error al generar la gráfica 6. Consulta los registros del servidor para más detalles."}), 500
 
 
+import os
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import backend as K
+import h5py
+from flask import jsonify, request, url_for, session
+
+import os
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import backend as K
+import h5py
+from flask import jsonify, request, url_for, session
+
 @predictionBratsAI.route('/generate-graphSegmentation', methods=['POST'])
 def graphSegmentation_route():
     if 'user_id' not in session:
@@ -221,60 +235,100 @@ def graphSegmentation_route():
         return jsonify({'message': f'El archivo HDF5 {h5_filename} no fue encontrado.'}), 404
 
     try:
-        # Conexión a la base de datos
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Verificar si ya existe la gráfica en la base de datos
-        cursor.execute("""
-            SELECT graph_segmentation_path
-            FROM patients
-            WHERE patient_id = %s
-        """, (patient_id,))
-        result = cursor.fetchone()
-
-        if result and result[0]:
-            # Si la gráfica ya existe, devolver la ruta
-            conn.close()
-            return jsonify({
-                "htmlUrlS": url_for('static', filename=result[0], _external=True)
-            })
-
-        # Cargar las imágenes y las segmentaciones desde el archivo HDF5
+        # Cargar las imágenes y segmentaciones desde el archivo HDF5
         with h5py.File(h5_filename, 'r') as hf:
             if 'images' not in hf or 'masks' not in hf:
                 return jsonify({'message': 'El archivo HDF5 no contiene imágenes o segmentación.'}), 400
 
             test_img = hf['images'][:]
-            real_segmentation = np.argmax(hf['masks'][:], axis=-1)  # Segmentación real en formato de clases
+            real_segmentation = np.argmax(hf['masks'][:], axis=-1)  # Segmentación real (clases)
 
         # Obtener la segmentación predicha
-        test_img_input = np.expand_dims(test_img, axis=0)
+        test_img_input = np.expand_dims(test_img[..., :4], axis=0)  # Si necesitas 4 canales
         test_prediction = model.predict(test_img_input)
         predicted_segmentation = np.argmax(test_prediction, axis=4)[0, :, :, :]
 
-        # Generar la gráfica con la segmentación real y predicha
+        # 🔹 **Cálculo de métricas**
+        def dice_coef(y_true, y_pred, smooth=1.0):
+            y_true_f = tf.cast(K.flatten(y_true), dtype=tf.float32)
+            y_pred_f = tf.cast(K.flatten(y_pred), dtype=tf.float32)
+            intersection = K.sum(y_true_f * y_pred_f)
+            return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+
+        def hausdorff_distance(y_true, y_pred):
+            y_true_f = K.cast(K.flatten(y_true), dtype=tf.float32)  # Convertir a float32
+            y_pred_f = K.cast(K.flatten(y_pred), dtype=tf.float32)  # Convertir a float32
+            return tf.reduce_max(tf.norm(y_true_f - y_pred_f, ord='euclidean'))
+
+        # Convertir segmentaciones a tensores
+        y_true = tf.convert_to_tensor(real_segmentation, dtype=tf.int32)
+        y_pred = tf.convert_to_tensor(predicted_segmentation, dtype=tf.int32)
+
+        # Cálculo de métricas
+        dice_val = dice_coef(y_true, y_pred).numpy()
+        mean_iou_metric = tf.keras.metrics.MeanIoU(num_classes=4)
+        mean_iou_metric.update_state(y_true, y_pred)
+        mean_iou_val = mean_iou_metric.result().numpy()
+        hausdorff_val = hausdorff_distance(y_true, y_pred).numpy()
+
+        # 🔹 **Generar texto descriptivo**
+        def generate_medical_report(dice, iou, hausdorff):
+            report = "🔍 **Informe de Segmentación Tumoral** 🔍\n\n"
+
+            # Evaluación Dice Coefficient
+            if dice > 0.85:
+                report += "✅ La segmentación muestra una **alta concordancia** con la segmentación real.\n"
+            elif dice > 0.70:
+                report += "⚠️ La segmentación tiene una **buena precisión**, pero puede mejorarse.\n"
+            else:
+                report += "❌ La segmentación tiene **baja precisión**, lo que puede indicar errores en el modelo.\n"
+
+            # Evaluación Mean IoU
+            if iou > 0.75:
+                report += "✅ El índice de superposición (IoU) indica una **buena identificación de las regiones tumorales**.\n"
+            elif iou > 0.50:
+                report += "⚠️ La segmentación tiene una **cobertura moderada**, puede haber regiones mal clasificadas.\n"
+            else:
+                report += "❌ La segmentación presenta **poca coincidencia con la referencia**, revisar la predicción.\n"
+
+            # Evaluación Hausdorff Distance
+            if hausdorff < 10:
+                report += "✅ La distancia Hausdorff indica una **buena alineación** con la segmentación real.\n"
+            elif hausdorff < 50:
+                report += "⚠️ Existen algunas diferencias significativas entre la predicción y la segmentación real.\n"
+            else:
+                report += "❌ Alta distancia Hausdorff, lo que sugiere **errores en la segmentación** y posibles bordes irregulares.\n"
+
+            report += "\n📌 **Conclusión:** Los resultados de segmentación deben interpretarse en el contexto clínico del paciente y, en caso de discrepancia, se recomienda una evaluación manual por parte del especialista."
+            return report
+
+        # Generar el informe médico
+        medical_report = generate_medical_report(dice_val, mean_iou_val, hausdorff_val)
+
+        # 🔹 **Salida de métricas y diagnóstico**
+        print(f"📊 Dice Coefficient: {dice_val:.4f}")
+        print(f"📊 Mean IoU: {mean_iou_val:.4f}")
+        print(f"📊 Hausdorff Distance: {hausdorff_val:.4f}")
+        print(f"📜 Informe médico: {medical_report}")
+
+        # Generar la gráfica con segmentaciones
         graphS_html = generate_graph_real_and_predicted_segmentation_with_brain(
             test_img, real_segmentation, predicted_segmentation
         )
-
-        # Guardar la ruta de la gráfica en la base de datos
-        cursor.execute("""
-            UPDATE patients
-            SET graph_segmentation_path = %s
-            WHERE patient_id = %s
-        """, (graphS_html, patient_id))
-
-        conn.commit()
-        conn.close()
 
         # Generar la URL para la gráfica
         graphS_url = url_for('static', filename=graphS_html, _external=True)
 
         return jsonify({
-            "htmlUrlS": graphS_url
+            "htmlUrlS": graphS_url,
+            "metrics": {
+                "Dice Coefficient": float(dice_val),
+                "Mean IoU": float(mean_iou_val),
+                "Hausdorff Distance": float(hausdorff_val)
+            },
+            "medical_report": medical_report  # Se envía el informe como texto
         })
 
     except Exception as e:
-        print(f"Error al generar la gráfica 3-D: {str(e)}")
-        return jsonify({"message": "Error al generar la gráfica. Consulta los registros del servidor para más detalles."}), 500
+        print(f"❌ Error al generar la gráfica y métricas: {str(e)}")
+        return jsonify({"message": "Error al generar la gráfica y métricas. Consulta los registros del servidor para más detalles."}), 500

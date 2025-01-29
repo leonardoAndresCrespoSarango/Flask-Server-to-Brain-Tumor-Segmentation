@@ -401,7 +401,7 @@ def generate_graph6(test_img, test_prediction_argmax):
     # Añadir textos explicativos (anotaciones)
     annotations = [
         dict(
-            text="Selecciona una modalidad:",
+            text="",
             x=0.2, y=0.5,
             xref="paper", yref="paper",
             showarrow=False,
