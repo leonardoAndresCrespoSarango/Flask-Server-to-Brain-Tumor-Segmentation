@@ -208,4 +208,74 @@ def updateSurvey(patient_id):
         cursor.close()
         conn.close()
 
+##ENDPOINTS PARA LOS HISTOGRAMAS
+@patient.route('/survey-data', methods=['GET'])
+def get_survey_data():
+    if 'user_id' not in session:
+        return jsonify({"error": "Usuario no autenticado"}), 401
+
+    user_id = session['user_id']
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Obtener solo las respuestas de 'ayudo_ia' para los pacientes del usuario
+        cursor.execute("""
+            SELECT ayudo_ia
+            FROM surveys s
+            JOIN patients p ON s.patient_id = p.patient_id
+            WHERE p.user_id = %s
+        """, (user_id,))
+        surveys = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        # Filtrar las respuestas no nulas
+        ayudo_ia_values = [survey['ayudo_ia'] for survey in surveys if survey['ayudo_ia'] is not None]
+
+        # Retornar solo los datos de 'ayudo_ia' para el frontend
+        return jsonify({'ayudo_ia': ayudo_ia_values})
+
+    except Exception as e:
+        print("Error al recuperar las encuestas:", str(e))
+        return jsonify({"error": "Error al recuperar las encuestas. Consulta los registros del servidor para más detalles."}), 500
+
+
+
+#ENDPOINT HISTOGRAMA MEJORO DIAGNOSTICO
+@patient.route('/surveymejoro-data', methods=['GET'])
+def get_survey_dataMejora():
+    if 'user_id' not in session:
+        return jsonify({"error": "Usuario no autenticado"}), 401
+
+    user_id = session['user_id']
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Obtener solo las respuestas de 'mejoro_ia' para los pacientes del usuario
+        cursor.execute("""
+            SELECT mejoro_ia
+            FROM surveys s
+            JOIN patients p ON s.patient_id = p.patient_id
+            WHERE p.user_id = %s
+        """, (user_id,))
+        surveys = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        # Filtrar las respuestas no nulas
+        mejoro_ia_values = [survey['mejoro_ia'] for survey in surveys if survey['mejoro_ia'] is not None]
+
+        # Retornar solo los datos de 'ayudo_ia' para el frontend
+        return jsonify({'mejoro_ia': mejoro_ia_values})
+
+    except Exception as e:
+        print("Error al recuperar las encuestas:", str(e))
+        return jsonify({"error": "Error al recuperar las encuestas. Consulta los registros del servidor para más detalles."}), 500
+
 
