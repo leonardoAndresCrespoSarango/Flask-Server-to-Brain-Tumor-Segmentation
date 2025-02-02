@@ -204,6 +204,26 @@ def graphDiagnostic_route():
         return jsonify({"message": "Error al generar la gráfica 6. Consulta los registros del servidor para más detalles."}), 500
 
 
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import backend as K
+import h5py
+
+# Define metrics functions
+
+def dice_coef(y_true, y_pred, smooth=1.0):
+    y_true_f = tf.cast(K.flatten(y_true), dtype=tf.float32)
+    y_pred_f = tf.cast(K.flatten(y_pred), dtype=tf.float32)
+    intersection = K.sum(y_true_f * y_pred_f)
+    return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+
+def hausdorff_distance(y_true, y_pred):
+    y_true = K.cast(y_true, 'float32')
+    y_pred = K.cast(y_pred, 'float32')
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
+    return tf.reduce_max(tf.norm(y_true_f - y_pred_f, ord='euclidean'))
+
 @predictionBratsAI.route('/generate-graphSegmentation', methods=['POST'])
 def graphSegmentation_route():
     if 'user_id' not in session:
@@ -225,21 +245,6 @@ def graphSegmentation_route():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verificar si ya existe la gráfica en la base de datos
-        cursor.execute("""
-            SELECT graph_segmentation_path
-            FROM patients
-            WHERE patient_id = %s
-        """, (patient_id,))
-        result = cursor.fetchone()
-
-        if result and result[0]:
-            # Si la gráfica ya existe, devolver la ruta
-            conn.close()
-            return jsonify({
-                "htmlUrlS": url_for('static', filename=result[0], _external=True)
-            })
-
         # Cargar las imágenes y las segmentaciones desde el archivo HDF5
         with h5py.File(h5_filename, 'r') as hf:
             if 'images' not in hf or 'masks' not in hf:
@@ -248,10 +253,48 @@ def graphSegmentation_route():
             test_img = hf['images'][:]
             real_segmentation = np.argmax(hf['masks'][:], axis=-1)  # Segmentación real en formato de clases
 
+        # Verificar la forma de test_img antes de expand_dims
+        print("Forma de test_img antes de expand_dims:", test_img.shape)
+        test_img_input = np.expand_dims(test_img, axis=0) if len(test_img.shape) == 4 else test_img
+        print("Forma de test_img después de expand_dims:", test_img_input.shape)
+
         # Obtener la segmentación predicha
-        test_img_input = np.expand_dims(test_img, axis=0)
         test_prediction = model.predict(test_img_input)
         predicted_segmentation = np.argmax(test_prediction, axis=4)[0, :, :, :]
+
+        # Cálculo de métricas
+        y_true = tf.convert_to_tensor(real_segmentation, dtype=tf.int32)
+        y_pred = tf.convert_to_tensor(predicted_segmentation, dtype=tf.int32)
+
+        dice_val = float(dice_coef(y_true, y_pred).numpy())
+        mean_iou_metric = tf.keras.metrics.MeanIoU(num_classes=4)
+        mean_iou_metric.update_state(y_true, y_pred)
+        mean_iou_val = float(mean_iou_metric.result().numpy())
+        hausdorff_val = float(hausdorff_distance(y_true, y_pred).numpy())
+
+        # Generar el informe basado en los valores obtenidos
+        if dice_val < 0.5:
+            dice_text = "*Precisión baja:* La segmentación presenta una coincidencia deficiente con la estructura real, lo que puede dificultar la identificación adecuada de las áreas afectadas. Se recomienda revisar la calidad de la imagen o ajustar los parámetros del modelo."
+        elif 0.5 <= dice_val < 0.8:
+            dice_text = "*Precisión moderada:* La segmentación es aceptable, pero aún existen diferencias notables con la estructura real. Se sugiere un análisis más detallado para confirmar la validez del resultado."
+        else:
+            dice_text = "*Precisión alta:* La segmentación se ajusta correctamente a la estructura real, permitiendo una evaluación confiable de la región afectada."
+
+        if mean_iou_val < 0.5:
+            iou_text = "*Superposición insuficiente:* La segmentación generada no se alinea adecuadamente con la estructura real, lo que puede afectar la interpretación clínica. Se recomienda mejorar la calidad del modelo."
+        elif 0.5 <= mean_iou_val < 0.8:
+            iou_text = "*Superposición aceptable:* Hay una correspondencia moderada entre la segmentación predicha y la real. Puede ser útil, pero es recomendable una revisión más detallada."
+        else:
+            iou_text = "*Superposición óptima:* La segmentación predicha coincide en gran medida con la estructura real, proporcionando un análisis confiable."
+
+        if hausdorff_val > 100:
+            hausdorff_text = "*Variabilidad alta:* Existen diferencias significativas entre la segmentación generada y la real, lo que puede comprometer la precisión del diagnóstico."
+        elif 50 < hausdorff_val <= 100:
+            hausdorff_text = "*Variabilidad moderada:* Aunque la segmentación es relativamente precisa, hay áreas donde la diferencia es notable. Se recomienda un ajuste fino en el procesamiento."
+        else:
+            hausdorff_text = "*Variabilidad baja:* La segmentación se alinea bien con la estructura real, indicando una alta precisión en la identificación de la región afectada."
+
+        medical_report = f"\n\n{dice_text}\n\n{iou_text}\n\n{hausdorff_text}\n\n*Conclusión:* Los resultados obtenidos ofrecen una evaluación detallada de la segmentación, permitiendo identificar con mayor precisión las estructuras relevantes en la imagen. Se recomienda considerar estos valores en conjunto con la evaluación clínica del paciente para una mejor interpretación y toma de decisiones médicas."
 
         # Generar la gráfica con la segmentación real y predicha
         graphS_html = generate_graph_real_and_predicted_segmentation_with_brain(
@@ -272,9 +315,15 @@ def graphSegmentation_route():
         graphS_url = url_for('static', filename=graphS_html, _external=True)
 
         return jsonify({
-            "htmlUrlS": graphS_url
+            "htmlUrlS": graphS_url,
+            "metrics": {
+                "Dice Coefficient": dice_val,
+                "Mean IoU": mean_iou_val,
+                "Hausdorff Distance": hausdorff_val
+            },
+            "medical_report": medical_report
         })
 
     except Exception as e:
         print(f"Error al generar la gráfica 3-D: {str(e)}")
-        return jsonify({"message": "Error al generar la gráfica. Consulta los registros del servidor para más detalles."}), 500
+        return jsonify({"message": "Error al generar la gráfica. Consulta los registros del servidor para más detalles."}),500
