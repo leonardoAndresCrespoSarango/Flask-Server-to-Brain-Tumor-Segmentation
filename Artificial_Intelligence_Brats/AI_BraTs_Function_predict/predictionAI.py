@@ -272,29 +272,76 @@ def graphSegmentation_route():
         mean_iou_val = float(mean_iou_metric.result().numpy())
         hausdorff_val = float(hausdorff_distance(y_true, y_pred).numpy())
 
-        # Generar el informe basado en los valores obtenidos
+        # Informe sobre la Precisión General (similar al Coeficiente Dice)
         if dice_val < 0.5:
-            dice_text = "*Precisión baja:* La segmentación presenta una coincidencia deficiente con la estructura real, lo que puede dificultar la identificación adecuada de las áreas afectadas. Se recomienda revisar la calidad de la imagen o ajustar los parámetros del modelo."
+            dice_text = (
+                f"El análisis muestra una *precisión baja* en la identificación de la zona afectada (valor: {dice_val:.2f}).\n"
+                "Esto significa que la delimitación de la zona de interés en la imagen difiere considerablemente de la estructura real. "
+                "Se sugiere revisar la calidad de la imagen o repetir el proceso para confirmar los hallazgos."
+            )
         elif 0.5 <= dice_val < 0.8:
-            dice_text = "*Precisión moderada:* La segmentación es aceptable, pero aún existen diferencias notables con la estructura real. Se sugiere un análisis más detallado para confirmar la validez del resultado."
+            dice_text = (
+                f"El análisis indica una *precisión moderada* en la delimitación de la zona afectada (valor: {dice_val:.2f}).\n"
+                "La segmentación es razonable, aunque se observan algunas discrepancias que podrían requerir una segunda verificación."
+            )
         else:
-            dice_text = "*Precisión alta:* La segmentación se ajusta correctamente a la estructura real, permitiendo una evaluación confiable de la región afectada."
+            dice_text = (
+                f"El análisis refleja una *alta precisión* en la delimitación de la zona afectada (valor: {dice_val:.2f}).\n"
+                "La segmentación se ajusta muy bien a la estructura real, facilitando una interpretación confiable."
+            )
 
+        # Informe sobre el Grado de Superposición (similar al Índice IoU)
         if mean_iou_val < 0.5:
-            iou_text = "*Superposición insuficiente:* La segmentación generada no se alinea adecuadamente con la estructura real, lo que puede afectar la interpretación clínica. Se recomienda mejorar la calidad del modelo."
+            iou_text = (
+                f"El grado de superposición entre la imagen y la delimitación es *bajo* (valor: {mean_iou_val:.2f}).\n"
+                "Esto indica que la correspondencia entre la zona segmentada y la real es limitada, lo que podría dificultar el diagnóstico."
+            )
         elif 0.5 <= mean_iou_val < 0.8:
-            iou_text = "*Superposición aceptable:* Hay una correspondencia moderada entre la segmentación predicha y la real. Puede ser útil, pero es recomendable una revisión más detallada."
+            iou_text = (
+                f"El grado de superposición es *moderado* (valor: {mean_iou_val:.2f}).\n"
+                "La correspondencia entre la imagen y la delimitación es aceptable, aunque se recomienda una revisión para asegurar la precisión en la interpretación clínica."
+            )
         else:
-            iou_text = "*Superposición óptima:* La segmentación predicha coincide en gran medida con la estructura real, proporcionando un análisis confiable."
+            iou_text = (
+                f"El grado de superposición es *alto* (valor: {mean_iou_val:.2f}).\n"
+                "La imagen y la delimitación se corresponden muy bien, lo que respalda la confiabilidad del análisis."
+            )
 
+        # Informe sobre la Conformidad de la Forma (relacionado con la Distancia de Hausdorff)
         if hausdorff_val > 100:
-            hausdorff_text = "*Variabilidad alta:* Existen diferencias significativas entre la segmentación generada y la real, lo que puede comprometer la precisión del diagnóstico."
+            hausdorff_text = (
+                f"Se detecta una *alta variabilidad* en la forma de la zona afectada (valor: {hausdorff_val:.2f}).\n"
+                "Esto implica que existen diferencias notables entre la forma de la zona segmentada y la estructura real, lo que podría influir en la interpretación."
+            )
         elif 50 < hausdorff_val <= 100:
-            hausdorff_text = "*Variabilidad moderada:* Aunque la segmentación es relativamente precisa, hay áreas donde la diferencia es notable. Se recomienda un ajuste fino en el procesamiento."
+            hausdorff_text = (
+                f"Se observa una *variabilidad moderada* en la forma (valor: {hausdorff_val:.2f}).\n"
+                "Aunque la segmentación es razonable, algunas discrepancias en la forma podrían necesitar una revisión adicional."
+            )
         else:
-            hausdorff_text = "*Variabilidad baja:* La segmentación se alinea bien con la estructura real, indicando una alta precisión en la identificación de la región afectada."
+            hausdorff_text = (
+                f"La *variabilidad en la forma* es *baja* (valor: {hausdorff_val:.2f}).\n"
+                "La forma de la zona afectada se corresponde de manera consistente con la estructura real, lo que favorece una evaluación clínica precisa."
+            )
 
-        medical_report = f"\n\n{dice_text}\n\n{iou_text}\n\n{hausdorff_text}\n\n*Conclusión:* Los resultados obtenidos ofrecen una evaluación detallada de la segmentación, permitiendo identificar con mayor precisión las estructuras relevantes en la imagen. Se recomienda considerar estos valores en conjunto con la evaluación clínica del paciente para una mejor interpretación y toma de decisiones médicas."
+        # Informe final combinando los resultados
+        medical_report = (
+                f"{dice_text}\n\n"
+                f"{iou_text}\n\n"
+                f"{hausdorff_text}\n\n"
+                "Conclusión:\n"
+                "- Precisión en la delimitación de la zona afectada: " + (
+                    "alta" if dice_val >= 0.8 else "moderada" if dice_val >= 0.5 else "baja"
+                ) + ".\n"
+                    "- Grado de superposición: " + (
+                    "alto" if mean_iou_val >= 0.8 else "moderado" if mean_iou_val >= 0.5 else "bajo"
+                ) + ".\n"
+                    "- Conformidad en la forma: " + (
+                    "alta" if hausdorff_val <= 50 else "moderada" if hausdorff_val <= 100 else "baja"
+                ) + ".\n\n"
+                    "Se recomienda considerar estos resultados en conjunto con la evaluación clínica del paciente. "
+
+        )
 
         # Generar la gráfica con la segmentación real y predicha
         graphS_html = generate_graph_real_and_predicted_segmentation_with_brain(
