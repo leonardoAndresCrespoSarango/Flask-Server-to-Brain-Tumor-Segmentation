@@ -63,7 +63,7 @@ def generate_graph1(test_img, test_prediction_argmax):
 
 
 class_names = {
-    1: 'Nucleo Necrotico',
+    1: 'Necrosis',
     2: 'Edema',
     3: 'Tumor Activo',
 
@@ -105,7 +105,7 @@ def generate_graph2(test_prediction_argmax):
         x=class_diameters_mm,
         orientation='h',
         marker=dict(color=['red', 'green', 'blue', 'yellow'][:len(class_diameters_mm)]),
-        text=[f'{d:.2f} mm' for d in class_diameters_mm],
+        text=[f'{d:.2f} mm³' for d in class_diameters_mm],
         textposition='auto'
     ))
 
@@ -327,7 +327,13 @@ def generate_graph5(test_img, test_prediction_argmax):
     return graph5_html, report_text5
 # Función para generar la sexta gráfica
 def generate_graph6(test_img, test_prediction_argmax):
-    class_names = ["no Tumor", "Nucleo Necrotico", "Edema", "Nucleo Activo"]
+    import numpy as np
+    import plotly.graph_objects as go
+    import plotly.subplots as psub
+    import os
+    from datetime import datetime
+
+    class_names = ["no Tumor", "Necrosis", "Edema", "Nucleo Activo"]
     modalities = ['Modalidad T1c', 'Modalidad T2w', 'Modalidad FLAIR']
     modality_index = {modality: i for i, modality in enumerate(modalities)}
 
@@ -343,10 +349,25 @@ def generate_graph6(test_img, test_prediction_argmax):
         specs=[[{"type": "heatmap"}, {"type": "heatmap"}]]
     )
 
-    # Añadir trazas iniciales (modalidad T1c y primer slice por defecto)
-    fig.add_trace(go.Heatmap(z=test_img[:, :, 0, modality_index['Modalidad T1c']], colorscale='gray', showscale=False), row=1, col=1)
-    fig.add_trace(go.Heatmap(z=test_prediction_argmax[:, :, 0], showscale=True, colorscale='Viridis',
-                             text=test_prediction_named[:, :, 0], hoverinfo='text'), row=1, col=2)
+    # Añadir trazas iniciales (modalidad T1c y primer slice por defecto) aplicando la rotación 90° en sentido horario
+    fig.add_trace(
+        go.Heatmap(
+            z=np.rot90(test_img[:, :, 0, modality_index['Modalidad T1c']], k=-1),
+            colorscale='gray',
+            showscale=False
+        ),
+        row=1, col=1
+    )
+    fig.add_trace(
+        go.Heatmap(
+            z=np.rot90(test_prediction_argmax[:, :, 0], k=-1),
+            showscale=True,
+            colorscale='Viridis',
+            text=np.rot90(test_prediction_named[:, :, 0], k=-1),
+            hoverinfo='text'
+        ),
+        row=1, col=2
+    )
 
     # Crear los frames para todas las combinaciones de modalidad y slice
     frames = []
@@ -354,9 +375,18 @@ def generate_graph6(test_img, test_prediction_argmax):
         for slice_index in range(test_img.shape[2]):
             frames.append(go.Frame(
                 data=[
-                    go.Heatmap(z=test_img[:, :, slice_index, modality_index[modality]], colorscale='gray', showscale=False),
-                    go.Heatmap(z=test_prediction_argmax[:, :, slice_index], showscale=True, colorscale='Viridis',
-                               text=test_prediction_named[:, :, slice_index], hoverinfo='text')
+                    go.Heatmap(
+                        z=np.rot90(test_img[:, :, slice_index, modality_index[modality]], k=-1),
+                        colorscale='gray',
+                        showscale=False
+                    ),
+                    go.Heatmap(
+                        z=np.rot90(test_prediction_argmax[:, :, slice_index], k=-1),
+                        showscale=True,
+                        colorscale='Viridis',
+                        text=np.rot90(test_prediction_named[:, :, slice_index], k=-1),
+                        hoverinfo='text'
+                    )
                 ],
                 name=f"{modality}_{slice_index}"
             ))
@@ -369,7 +399,8 @@ def generate_graph6(test_img, test_prediction_argmax):
     for slice_index in range(test_img.shape[2]):
         step = dict(
             method="animate",
-            args=[[f"{modalities[0]}_{slice_index}"], dict(mode="immediate", frame=dict(duration=0, redraw=True), transition=dict(duration=0))],
+            args=[[f"{modalities[0]}_{slice_index}"],
+                  dict(mode="immediate", frame=dict(duration=0, redraw=True), transition=dict(duration=0))],
             label=str(slice_index)
         )
         steps.append(step)
@@ -428,12 +459,14 @@ def generate_graph6(test_img, test_prediction_argmax):
         plot_bgcolor='white',
         xaxis=dict(showgrid=False),
         yaxis=dict(showgrid=False),
-        yaxis2=dict(showgrid=False),
+        yaxis2=dict(showgrid=False)
     )
 
+    # Guardar la gráfica como un archivo HTML
     graph6_html = f'graph6_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
     fig.write_html(os.path.join('static', graph6_html))
     return graph6_html
+
 
 
 def generate_graph6_no_prediction(test_img):
@@ -455,9 +488,10 @@ def generate_graph6_no_prediction(test_img):
 
     # Añadir las trazas iniciales (primer corte para cada modalidad)
     for idx, modality in enumerate(modalities):
+        # Se rota la imagen 90 grados usando np.rot90
         fig.add_trace(
             go.Heatmap(
-                z=test_img[:, :, 0, modality_index[modality]],
+                z=np.rot90(test_img[:, :, 0, modality_index[modality]]),
                 colorscale='gray',
                 showscale=False,
             ),
@@ -469,9 +503,10 @@ def generate_graph6_no_prediction(test_img):
     for slice_index in range(test_img.shape[2]):
         frame_data = []
         for idx, modality in enumerate(modalities):
+            # Rotamos cada imagen 90 grados
             frame_data.append(
                 go.Heatmap(
-                    z=test_img[:, :, slice_index, modality_index[modality]],
+                    z=np.rot90(test_img[:, :, slice_index, modality_index[modality]],k=-1),
                     colorscale='gray',
                     showscale=False,
                 )
@@ -534,6 +569,7 @@ def generate_graph6_no_prediction(test_img):
     return graph6_html
 
 
+
 def generate_graphDiagnostic(test_img):
     modalities = ['Modalidad T1c', 'Modalidad T2w', 'Modalidad FLAIR']
     fig = psub.make_subplots(
@@ -591,7 +627,7 @@ def generate_graph_real_and_predicted_segmentation_with_brain(test_img, real_seg
     }
 
     class_descriptions = {
-        1: 'Núcleo Necrótico',
+        1: 'Necrosis',
         2: 'Edema',
         3: 'Tumor Activo',
     }
