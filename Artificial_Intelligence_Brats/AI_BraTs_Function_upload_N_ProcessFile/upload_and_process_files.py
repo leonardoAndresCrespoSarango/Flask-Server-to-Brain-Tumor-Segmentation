@@ -13,20 +13,29 @@ import matplotlib.pyplot as plt
 
 from DataBase import get_db_connection
 
+#Definir el blueprint para la carga de archivos
 upload = Blueprint('upload', __name__)
+
+# Ruta para cargar y procesar archivos de imágenes
 @upload.route('/upload', methods=['POST'])
 def upload_and_process_files():
+
+    # Verificar si los archivos y el patient_id están presentes en la solicitud
     if 'files' not in request.files or 'patient_id' not in request.form:
         response = make_response('No files part or patient ID in the request.', 400)
+
+        # Agregar cabeceras CORS para permitir solicitudes desde otros orígenes
         response.headers.add('Access-Control-Allow-Origin', 'http://localhost:4200')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
         return response
 
+    # Obtener los archivos y el ID del paciente de la solicitud
     upload_files = request.files.getlist('files')
     patient_id = request.form['patient_id']
     user_id = session.get('user_id')  # Obtén el ID del usuario autenticado
 
+    # Verificar si el usuario está autenticado
     if not user_id:
         return jsonify({'message': 'Usuario no autenticado'}), 401
 
@@ -34,10 +43,12 @@ def upload_and_process_files():
     print(f"Patient ID received: {patient_id}")
     print(f"User ID: {user_id}")
 
+    # Verificar o crear la carpeta donde se guardarán los archivos cargados
     mainPath = current_app.config['UPLOAD_FOLDER']
     if not os.path.exists(mainPath):
         os.makedirs(mainPath)
 
+    # Guardar los archivos cargados en la carpeta de destino
     for file in upload_files:
         filename = secure_filename(file.filename)
         file.save(os.path.join(mainPath, filename))
@@ -46,33 +57,38 @@ def upload_and_process_files():
     # Verificar el contenido del directorio uploads
     print(f"Contenido de {mainPath}: {os.listdir(mainPath)}")
 
-    # Obtener paths de las modalidades
+    # Buscar archivos de diferentes modalidades (T2, T1CE, FLAIR) en la carpeta cargada
     t2_path = os.path.join(mainPath, '*t2W.nii.gz')
     t1ce_path = os.path.join(mainPath, '*t1c.nii.gz')
     flair_path = os.path.join(mainPath, '*t2f.nii.gz')
 
+    # Mostrar los paths de búsqueda
     print(f"Buscando archivos T2 en: {t2_path}")
     print(f"Buscando archivos T1CE en: {t1ce_path}")
     print(f"Buscando archivos FLAIR en: {flair_path}")
 
+    # Obtener la lista de archivos que coinciden con las búsquedas
     t2_list = sorted(glob.glob(t2_path))
     t1ce_list = sorted(glob.glob(t1ce_path))
     flair_list = sorted(glob.glob(flair_path))
 
+    # Imprimir las listas de archivos encontrados
     print(f"Archivos T2 encontrados: {t2_list}")
     print(f"Archivos T1CE encontrados: {t1ce_list}")
     print(f"Archivos FLAIR encontrados: {flair_list}")
 
+
+    # Verificar si alguno de los archivos necesarios está ausente
     if len(t1ce_list) == 0 or len(t2_list) == 0 or len(flair_list) == 0:
         print("Error: Required files are missing")
         return jsonify({'message': 'Error: Required files are missing'}), 400
 
     try:
-        # Insertar o actualizar paths en la base de datos
+        # Conectar a la base de datos para actualizar los paths de las modalidades
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Solo actualizar paths de las modalidades
+        # Actualizar los paths de las modalidades en la base de datos
         cursor.execute("""
         UPDATE patients
         SET t1ce_path = %s,
@@ -101,6 +117,8 @@ def upload_and_process_files():
     scaler = MinMaxScaler()
     target_shape = (128, 128, 128)  # Dimensiones objetivo
     output_path = 'processed_files/'
+
+    # Verificar si la carpeta de salida existe, y si no, crearla
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
@@ -110,6 +128,7 @@ def upload_and_process_files():
     for img in range(len(t1ce_list)):
         print("Now preparing image number: ", img)
 
+        # Cargar y preprocesar cada modalidad
         temp_image_t2 = nib.load(t2_list[img]).get_fdata()
         temp_image_t2 = scaler.fit_transform(temp_image_t2.reshape(-1, temp_image_t2.shape[-1])).reshape(temp_image_t2.shape)
 
@@ -119,8 +138,12 @@ def upload_and_process_files():
         temp_image_flair = nib.load(flair_list[img]).get_fdata()
         temp_image_flair = scaler.fit_transform(temp_image_flair.reshape(-1, temp_image_flair.shape[-1])).reshape(temp_image_flair.shape)
 
+
+        # Combinar las imágenes de diferentes modalidades en un solo array
         temp_combined_images = np.stack([temp_image_t1ce, temp_image_t2, temp_image_flair], axis=3)
 
+
+        # Redimensionar la imagen combinada a la forma objetivo
         temp_combined_images_resized = resize(temp_combined_images, target_shape, mode='constant', anti_aliasing=True)
 
         try:
@@ -141,22 +164,27 @@ def upload_and_process_files():
 
 
 
-
+# Ruta para cargar y procesar archivos de segmentación
 @upload.route('/upload-segmentation', methods=['POST'])
 def upload_and_process_segmentation():
+    # Verificar si los archivos y el patient_id están presentes en la solicitud
     if 'files' not in request.files or 'patient_id' not in request.form:
         response = make_response('No files part or patient ID in the request.', 400)
+
+        # Agregar cabeceras CORS para permitir solicitudes desde otros orígenes
         response.headers.add('Access-Control-Allow-Origin', 'http://localhost:4200')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
         return response
 
+    # Obtener los archivos y el ID del paciente de la solicitud
     upload_files = request.files.getlist('files')
     patient_id = request.form['patient_id']
 
     print(f"Files received: {[file.filename for file in upload_files]}")
     print(f"Patient ID received: {patient_id}")
 
+    # Verificar o crear la carpeta donde se guardarán los archivos cargados
     main_path = current_app.config['UPLOAD_FOLDER']
     if not os.path.exists(main_path):
         os.makedirs(main_path)
@@ -167,6 +195,8 @@ def upload_and_process_segmentation():
         file.save(os.path.join(main_path, filename))
         print(f"Archivo de segmentación guardado: {filename}")
 
+
+    # Cargar los archivos de segmentación y procesarlos (similar a las imágenes)
     seg_path = os.path.join(main_path, '*seg.nii.gz')
     seg_list = sorted(glob.glob(seg_path))
 
@@ -175,7 +205,7 @@ def upload_and_process_segmentation():
 
     print(f"Archivo de segmentación encontrado: {seg_list[0]}")
 
-    # Consultar paths de las modalidades en la base de datos
+    # Leer y guardar las segmentaciones
     try:
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)

@@ -6,13 +6,18 @@ from psycopg2.extras import RealDictCursor
 
 
 
+#Definimos un Blueprint para las rutas relacionadas con pacientes
 patient = Blueprint('patient', __name__)
+
+#Ruta para agregar un nuevo paciente
 @patient.route('/add-patient', methods=['POST'])
 def add_patient():
+    # Verifica si el usuario está autenticado (si existe 'user_id' en la sesión)
     if 'user_id' not in session:
         return jsonify({"error": "Usuario no autenticado"}), 401
 
     user_id = session['user_id']
+    # Se obtiene la información del paciente desde la solicitud JSON
     data = request.json
 
     patient_info = {
@@ -22,8 +27,10 @@ def add_patient():
     }
 
     try:
+        # Establece la conexión a la base de datos
         conn = get_db_connection()
         cursor = conn.cursor()
+        # Inserta el nuevo paciente en la base de datos
         cursor.execute(
             'INSERT INTO patients (user_id, patient_id, numero_historia_clinica, survey_completed) VALUES (%s, %s, %s, %s)',
             (user_id, patient_info['id'], patient_info['numero_historia_clinica'], patient_info['survey_completed'])
@@ -38,6 +45,7 @@ def add_patient():
         print("Error al agregar el paciente:", str(e))
         return jsonify({"error": "Error al agregar el paciente. Consulta los registros del servidor para más detalles."}), 500
 
+# Ruta para obtener los pacientes del usuario autenticado
 @patient.route('/patients', methods=['GET'])
 def get_patients():
     if 'user_id' not in session:
@@ -48,6 +56,7 @@ def get_patients():
     try:
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
+        # Realiza una consulta SQL para obtener los pacientes y su diagnóstico asociado
         cursor.execute("""
                    SELECT 
                        p.patient_id, 
@@ -61,6 +70,7 @@ def get_patients():
                    ON p.patient_id = d.patient_id
                    WHERE p.user_id = %s
                """, (user_id,))
+        # Recupera todos los pacientes del resultado de la consulta
         patients = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -71,7 +81,7 @@ def get_patients():
         print("Error al recuperar los pacientes:", str(e))
         return jsonify({"error": "Error al recuperar los pacientes. Consulta los registros del servidor para más detalles."}), 500
 
-#PRUERBA DE ENDPOINT ELIMINAR PACIENTE POR ID
+#ENDPOINT ELIMINAR PACIENTE POR ID
 @patient.route('/delete-patient/<string:patient_id>', methods=['DELETE'])
 def delete_patient(patient_id):
     if 'user_id' not in session:
@@ -104,6 +114,8 @@ def delete_patient(patient_id):
         return jsonify({"error": "Error al eliminar el paciente. Consulta los registros del servidor para más detalles."}), 500
 ##fin delete patient
 
+
+# Ruta para actualizar o crear una encuesta para un paciente
 @patient.route('/patients/<patient_id>/survey-status', methods=['PUT'])
 def update_survey_status(patient_id):
     if 'user_id' not in session:
@@ -161,6 +173,7 @@ def update_survey_status(patient_id):
             cursor.close()
 
 
+# Ruta para actualizar o crear una encuesta para un paciente
 @patient.route('/updateSurvey/<patient_id>', methods=['PUT'])
 def updateSurvey(patient_id):
     try:

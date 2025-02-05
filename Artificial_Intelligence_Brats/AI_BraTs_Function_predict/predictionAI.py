@@ -12,10 +12,15 @@ from graficas.graficasPloty import generate_graph1, generate_graph2, generate_gr
     generate_graph6, generate_graph6_no_prediction, generate_graphDiagnostic,  \
      generate_graph_real_and_predicted_segmentation_with_brain
 import nibabel as nib
+
+# Configuración del Blueprint para manejar rutas relacionadas con la predicción
 predictionBratsAI = Blueprint('predictionBratsAI', __name__)
+
+# Definición de parámetros del modelo
 IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS = 128, 128, 128, 3
 num_classes = 4
 
+# Cargar modelo UNet 3D
 try:
     model = UNet(IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS, num_classes)
     model.load_weights('model_3D\\3 clases\\modelUnet3D_3.h5')
@@ -23,6 +28,8 @@ try:
 except Exception as e:
     model_loaded = False
     load_error = str(e)
+
+# Función para eliminar archivos después de un tiempo determinado
 def delete_file_after_delay(file_path, delay):
     def delete_file():
         if os.path.exists(file_path):
@@ -34,7 +41,7 @@ def delete_file_after_delay(file_path, delay):
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# Función para obtener conexión a la base de datos
+# Conexión a la base de datos PostgreSQL
 def get_db_connection():
     return psycopg2.connect(
         dbname='postgres',
@@ -44,6 +51,7 @@ def get_db_connection():
         port='6543'
     )
 
+# Ruta para realizar la predicción
 @predictionBratsAI.route('/predict-ia', methods=['POST'])
 def predict_ia():
     if 'user_id' not in session:
@@ -60,6 +68,7 @@ def predict_ia():
     if not os.path.exists(h5_filename):
         return jsonify({'message': f'El archivo HDF5 {h5_filename} no fue encontrado.'}), 404
 
+    # Conectar a la base de datos
     try:
         # Verificar si ya existen las gráficas en la base de datos
         conn = get_db_connection()
@@ -73,6 +82,7 @@ def predict_ia():
 
         result = cursor.fetchone()
 
+        # Si ya existen las gráficas, devolver las URLs
         if result and all(result.values()):
             # Si ya existen las gráficas, devolver las rutas almacenadas
             conn.close()
@@ -86,10 +96,12 @@ def predict_ia():
             })
 
         # Si no existen las gráficas, generarlas
+        # Cargar imagen HDF5
         test_img = load_hdf5_file(h5_filename)
         if test_img is None:
             return jsonify({'message': 'Error al cargar el archivo HDF5.'}), 500
 
+        # Realizar predicción con el modelo
         test_img_input = np.expand_dims(test_img, axis=0)
         test_prediction = model.predict(test_img_input)
         test_prediction_argmax = np.argmax(test_prediction, axis=4)[0, :, :, :]
@@ -130,27 +142,34 @@ def predict_ia():
         return jsonify({"message": "Error durante la predicción. Consulta los registros del servidor para más detalles."}), 500
 
 
+# Ruta para generar la gráfica de diagnóstico 3D del paciente
 @predictionBratsAI.route('/generate-graph6', methods=['POST'])
 def generate_graph6_route():
+    # Verificar si el usuario está autenticado, si no, devolver mensaje de error
     if 'user_id' not in session:
         return jsonify({"message": "Usuario no autenticado"}), 401
 
     user_id = session['user_id']
     patient_id = request.json.get('patient_id')
 
+    # Verificar si se proporciona un patient_id en la solicitud
     if not patient_id:
         return jsonify({'message': 'Patient ID is missing'}), 400
 
+    # Construir la ruta del archivo HDF5 basado en el patient_id
     h5_filename = os.path.join('processed_files', f'{patient_id}.h5')
 
+    # Verificar si el archivo HDF5 existe
     if not os.path.exists(h5_filename):
         return jsonify({'message': f'El archivo HDF5 {h5_filename} no fue encontrado.'}), 404
 
+        # Cargar las imágenes desde el archivo HDF5
     try:
         # Cargar las imágenes desde el archivo HDF5
         test_img = load_hdf5_file(h5_filename)
         if test_img is None:
             return jsonify({'message': 'Error al cargar el archivo HDF5.'}), 500
+
 
         # Generar la gráfica 6 (solo imágenes del paciente)
         graph6_html = generate_graph6_no_prediction(test_img)
@@ -167,6 +186,7 @@ def generate_graph6_route():
         return jsonify({"message": "Error al generar la gráfica 6. Consulta los registros del servidor para más detalles."}), 500
 
 
+# Ruta para generar la gráfica de diagnóstico 3D del paciente
 @predictionBratsAI.route('/generate-graphDiagnostic', methods=['POST'])
 def graphDiagnostic_route():
     if 'user_id' not in session:
@@ -209,8 +229,7 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 import h5py
 
-# Define metrics functions
-
+# Definición de funciones de métricas para evaluar la segmentación
 def dice_coef(y_true, y_pred, smooth=1.0):
     y_true_f = tf.cast(K.flatten(y_true), dtype=tf.float32)
     y_pred_f = tf.cast(K.flatten(y_pred), dtype=tf.float32)
@@ -224,6 +243,7 @@ def hausdorff_distance(y_true, y_pred):
     y_pred_f = K.flatten(y_pred)
     return tf.reduce_max(tf.norm(y_true_f - y_pred_f, ord='euclidean'))
 
+# Ruta para generar la gráfica de segmentación (con segmentación predicha y real)
 @predictionBratsAI.route('/generate-graphSegmentation', methods=['POST'])
 def graphSegmentation_route():
     if 'user_id' not in session:
@@ -262,7 +282,7 @@ def graphSegmentation_route():
         test_prediction = model.predict(test_img_input)
         predicted_segmentation = np.argmax(test_prediction, axis=4)[0, :, :, :]
 
-        # Cálculo de métricas
+        # Cálculo de métricas de evaluación
         y_true = tf.convert_to_tensor(real_segmentation, dtype=tf.int32)
         y_pred = tf.convert_to_tensor(predicted_segmentation, dtype=tf.int32)
 
@@ -361,6 +381,7 @@ def graphSegmentation_route():
         # Generar la URL para la gráfica
         graphS_url = url_for('static', filename=graphS_html, _external=True)
 
+        # Retornar los resultados en formato JSON
         return jsonify({
             "htmlUrlS": graphS_url,
             "metrics": {
@@ -372,5 +393,6 @@ def graphSegmentation_route():
         })
 
     except Exception as e:
+        # Manejar cualquier excepción y devolver mensaje de error
         print(f"Error al generar la gráfica 3-D: {str(e)}")
         return jsonify({"message": "Error al generar la gráfica. Consulta los registros del servidor para más detalles."}),500

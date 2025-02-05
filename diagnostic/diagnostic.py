@@ -11,24 +11,29 @@ from reportes.reporte import generate_medical_report
 
 diagnostic = Blueprint('diagnostic', __name__)
 
-# Ruta para obtener diagnósticos de un paciente
+# Definir un Blueprint para manejar las rutas del diagnóstico
 @diagnostic.route('/add-diagnostic', methods=['POST'])
 def add_diagnostic():
+    # Verificar si el usuario está autenticado
     if 'user_id' not in session:
         return jsonify({"error": "Usuario no autenticado"}), 401
 
+    # Obtener el ID del usuario y los datos enviados en la solicitud
     user_id = session['user_id']
     data = request.json
 
+    # Preparar la información del diagnóstico
     diagnostic_info = {
         'patient_id': data.get('patient_id'),
         'cancer_status': data.get('cancer_status'),  # Ahora es un texto del ENUM
         'description': data.get('description')
     }
 
+    # Validar que el estado del cáncer sea válido
     if diagnostic_info['cancer_status'] not in ['cancer detectado', 'no se detecta cancer', 'diagnostico incierto']:
         return jsonify({"error": "Valor inválido para cancer_status"}), 400
     try:
+        # Conectar a la base de datos
         conn = get_db_connection()
         cursor = conn.cursor()
 
@@ -132,8 +137,10 @@ def add_diagnostic():
             {"error": "Error al agregar o actualizar el diagnóstico. Consulta los registros del servidor para más detalles."}), 500
 
 
+# Ruta para obtener los diagnósticos de un paciente
 @diagnostic.route('/diagnostics/<patient_id>', methods=['GET'])
 def get_diagnostics(patient_id):
+    # Verificar si el usuario está autenticado
     if 'user_id' not in session:
         return jsonify({"error": "Usuario no autenticado"}), 401
 
@@ -155,8 +162,10 @@ def get_diagnostics(patient_id):
         return jsonify({"error": "Error al recuperar los diagnósticos. Consulta los registros del servidor para más detalles."}), 500
 
 
+# Ruta para actualizar un diagnóstico
 @diagnostic.route('/update-diagnostic', methods=['POST'])
 def update_diagnostic():
+    # Verificar si el usuario está autenticado
     if 'user_id' not in session:
         return jsonify({"error": "Usuario no autenticado"}), 401
 
@@ -182,8 +191,10 @@ def update_diagnostic():
         return jsonify({"error": "Error al actualizar el diagnóstico. Consulta los registros del servidor para más detalles."}), 500
 
 
+# Ruta para obtener un diagnóstico específico de un paciente
 @diagnostic.route('/get-diagnostic/<patient_id>', methods=['GET'])
 def get_diagnostic(patient_id):
+    # Verificar si el usuario está autenticado
     if 'user_id' not in session:
         return jsonify({"error": "Usuario no autenticado"}), 401
 
@@ -206,6 +217,7 @@ def get_diagnostic(patient_id):
         print("Error al recuperar el diagnóstico:", str(e))
         return jsonify({"error": "Error al recuperar el diagnóstico. Consulta los registros del servidor para más detalles."}), 500
 
+# Ruta para servir el reporte médico generado
 @diagnostic.route('/reportes/<path:filename>')
 def serve_report(filename):
     return send_from_directory('reportes', filename)

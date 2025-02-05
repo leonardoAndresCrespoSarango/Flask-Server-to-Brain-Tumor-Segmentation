@@ -5,7 +5,7 @@ from psycopg2.extras import RealDictCursor
 def get_db_connection():
     return psycopg2.connect(
         dbname='postgres',
-        user='postgres.txfhmfkxzcwigxhzhvmx',
+        user='postgres.ldsihxoskpzlzdprmvmq',
         password='VLNVddyd2002',
         host='aws-0-us-east-1.pooler.supabase.com',
         port='6543'

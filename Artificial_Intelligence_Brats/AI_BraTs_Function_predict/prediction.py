@@ -15,10 +15,14 @@ from UNET import UNet
 from latex.plantilla import create_medical_report
 
 
+# Definición de un Blueprint para modularizar la aplicación Flask
 predictionBrats = Blueprint('predictionBrats', __name__)
+
+# Dimensiones de las imágenes de entrada y número de clases de segmentación
 IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS = 128, 128, 128, 3
 num_classes = 4
 
+# Carga del modelo UNet preentrenado para la segmentación de tumores cerebrales
 try:
     model = UNet(IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS, num_classes)
     model.load_weights('model_3D\\3 clases\\modelUnet3D_3.h5')
@@ -26,6 +30,8 @@ try:
 except Exception as e:
     model_loaded = False
     load_error = str(e)
+
+# Función para eliminar un archivo después de un tiempo determinado
 def delete_file_after_delay(file_path, delay):
     def delete_file():
         if os.path.exists(file_path):
@@ -34,6 +40,8 @@ def delete_file_after_delay(file_path, delay):
 
     timer = threading.Timer(delay, delete_file)
     timer.start()
+
+# Ruta para realizar la predicción del modelo
 @predictionBrats.route('/predict', methods=['POST'])
 def predict():
     if 'user_id' not in session:
@@ -50,6 +58,7 @@ def predict():
         if not data:
             return jsonify({"error": "No se recibieron datos"}), 400
 
+        # Obtener información del paciente desde la solicitud JSON
         patient_info = {
             'name': data['name'],
             'age': data['age'],
@@ -59,6 +68,7 @@ def predict():
 
         prediagnosis = data['diagnosis']
 
+        # Buscar archivos HDF5 en la carpeta de archivos procesados
         folder_path = "processed_files/"
         hdf5_files = glob.glob(os.path.join(folder_path, "*.h5"))
 
@@ -70,16 +80,19 @@ def predict():
         if not os.path.isfile(file_path):
             return jsonify({"error": "Archivo HDF5 no encontrado."}), 404
 
+        # Cargar imagen de prueba desde el archivo HDF5
         test_img = load_hdf5_file(file_path)
         if test_img is None:
             return jsonify({"error": "Error al cargar el archivo HDF5."}), 500
 
+        # Realizar predicción con el modelo
         test_img_input = np.expand_dims(test_img, axis=0)
         test_prediction = model.predict(test_img_input)
         test_prediction_argmax = np.argmax(test_prediction, axis=4)[0, :, :, :]
 
         images = []
 
+        # Generar imágenes de las predicciones
         for i in range(test_prediction_argmax.shape[2]):
             fig, ax = plt.subplots(1, 2, figsize=(12, 8))
 
@@ -100,21 +113,26 @@ def predict():
             temp_image_path = f"static/temp_image_{i}.png"
             plt.imsave(temp_image_path, image)
 
+        # Nombre del archivo de video
         video_filename = f"static/video_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
         #clip = ImageSequenceClip(images, fps=20)
         #clip.write_videofile(video_filename, codec='libx264', audio=False)
 
+        # Guardar las imágenes generadas
         mri_images = [f"static/temp_image_{i}.png" for i in range(len(images))]
 
+        # Generar el reporte médico en PDF
         report_filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         create_medical_report(patient_info, prediagnosis, mri_images, report_filename)
 
+        # Leer el video y el reporte para almacenamiento en base de datos
         with open(video_filename, 'rb') as video_file:
             video_data = video_file.read()
 
         with open(report_filename, 'rb') as report_file:
             report_data = report_file.read()
 
+        # Almacenar los resultados en la base de datos
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -126,6 +144,7 @@ def predict():
         cursor.close()
         conn.close()
 
+        # Programar la eliminación del archivo de video después de 10 minutos
         delete_file_after_delay(video_filename, 600)
         os.remove(report_filename)
         video_url = f"{request.host_url}{video_filename}"

@@ -25,14 +25,16 @@ import smtplib
 from email.mime.text import MIMEText
 from DataBase import get_db_connection
 
-# Crear un Blueprint
+# Crear un Blueprint para gestionar las rutas de la aplicacion
 routes = Blueprint('routes', __name__)
 
+# Ruta para recuperar la contraseña, donde el usuario proporciona su email.
 @routes.route('/forgot-password', methods=['POST'])
 def forgot_password():
+    # Extraemos el correo electrónico del cuerpo de la solicitud
     data = request.json
     email = data.get('email')
-
+    # Conectamos con la base de datos para buscar el usuario por email
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM users WHERE username = %s', (email,))
@@ -40,12 +42,15 @@ def forgot_password():
     cursor.close()
     conn.close()
 
+    # Si no se encuentra el usuario, respondemos con error
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
+    # Generamos un token de recuperación y fijamos su expiración
     token = secrets.token_urlsafe(16)
     expiration = datetime.utcnow() + timedelta(hours=1)
 
+    # Insertamos el token de recuperación en la base de datos
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -55,10 +60,12 @@ def forgot_password():
     conn.commit()
     cursor.close()
     conn.close()
-
+    # Enviamos el correo con el enlace de recuperación de contraseña
     send_reset_email(email, token)
 
     return jsonify({'message': 'Password reset link has been sent to your email'})
+
+# Función para enviar un correo electrónico con el enlace de recuperación.
 def send_reset_email(email, token):
     sender = 'youremail@example.com'
     password = 'yourpassword'
@@ -74,6 +81,7 @@ def send_reset_email(email, token):
         server.login(sender, password)
         server.sendmail(sender, email, msg.as_string())
 
+# Ruta para restablecer la contraseña con un token de recuperación válido.
 @routes.route('/reset-password/<token>', methods=['POST'])
 def reset_password(token):
     data = request.json
@@ -98,6 +106,8 @@ def reset_password(token):
     conn.close()
 
     return jsonify({'message': 'Password has been reset successfully'})
+
+# Ruta para generar un token de restablecimiento de contraseña manualmente.
 @routes.route('/generate-reset-token', methods=['POST'])
 def generate_reset_token():
     data = request.json
@@ -125,6 +135,7 @@ def generate_reset_token():
 
     return jsonify({'token': token, 'message': 'Reset token generated successfully'})
 
+## Ruta para enviar retroalimentación de la encuesta relacionada con el paciente
 @routes.route('/submit-feedbackE/<patient_id>', methods=['POST'])
 def submit_feedback(patient_id):
     data = request.json

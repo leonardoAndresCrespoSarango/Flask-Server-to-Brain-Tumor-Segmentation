@@ -1,5 +1,8 @@
 import h5py
 
+#    Carga un archivo HDF5 y extrae el conjunto de imágenes almacenadas en él.
+#       :param file_path: Ruta del archivo HDF5 a cargar.
+#       :return: Array de imágenes si la carga es exitosa, None en caso de error.
 
 def load_hdf5_file(file_path):
     try:
