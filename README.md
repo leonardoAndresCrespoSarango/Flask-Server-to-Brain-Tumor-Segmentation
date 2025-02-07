@@ -34,9 +34,76 @@ Este servidor es una herramienta útil para la investigación en neuroimagen, ay
 <h2 align="justify"><strong>Estructura del Proyecto</strong></h2>
 
 📂 Flask-Server-to-Brain-Tumor-Segmentation<br>
-│── 📂 models/              # Modelos de deep learning<br>
-│── 📂 static/              # Archivos estáticos (si aplica)<br>
-│── 📂 templates/           # Interfaz web (si aplica)<br>
-│── app.py                  # Servidor Flask<br>
-│── requirements.txt         # Dependencias<br>
-│── README.md                # Documentación<br>
+│── 📄 app.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Servidor Flask principal<br>
+│── 📄 DataBase.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Gestión de base de datos<br>
+│── 📄 estructura.txt &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Descripción de la estructura del proyecto<br>
+│── 📄 H5.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Manejo de archivos H5<br>
+│── 📄 README.md &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Documentación del proyecto<br>
+│── 📄 requirements.txt &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Dependencias necesarias<br>
+│── 📄 UNET.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Modelo UNET para segmentación<br>
+├── 📂 Artificial_Intelligence_Brats/  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Funcionalidades de IA<br>
+│   ├── 📂 AI_BraTs_Function_predict/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   │   ├── 📄 prediction.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   │   ├── 📄 predictionAI.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📂 AI_BraTs_Function_report/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   │   ├── 📄 report.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📂 AI_BraTs_Function_result/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   │   ├── 📄 result.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📂 AI_BraTs_Function_upload_N_ProcessFile/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   │   ├── 📄 upload_and_process_files.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│<br>
+├── 📂 diagnostic/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Funcionalidades de diagnóstico<br>
+│   ├── 📄 diagnostic.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📄 diagnostic_with_patient.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│<br>
+├── 📂 GLIOMA/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Visualización de pacientes<br>
+│   ├── 📄 animation.gif &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📄 paciente.ipynb &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📄 vializador.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📄 visualizacion.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│<br>
+├── 📂 graficas/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Generación de gráficos<br>
+│   ├── 📄 graficasPloty.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│<br>
+├── 📂 latex/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Generación de reportes en LaTeX<br>
+│   ├── 📄 plantilla.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│<br>
+├── 📂 model_3D/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Modelos en 3D<br>
+│   ├── 📂 3 clases/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   │   └── 📄 modelUnet3D_3.h5 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│<br>
+├── 📂 patient/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Manejo de datos de pacientes<br>
+│   ├── 📄 patient.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # También se agregó los histogramas<br>
+│<br>
+├── 📂 processed_files/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Archivos procesados<br>
+│<br>
+├── 📂 reportes/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Reportes generados<br>
+│   ├── 📄 reporte.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📄 report_*.pdf &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Reportes en formato PDF<br>
+│   ├── 📄 report_*.tex &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Reportes en formato LaTeX<br>
+│<br>
+├── 📂 reports/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Funciones para generar reportes<br>
+│   ├── 📄 reportePDF.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│<br>
+├── 📂 routes/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Rutas del servidor Flask<br>
+│   ├── 📄 login.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📄 predictionsMedia.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📄 routes.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Envío de la encuesta<br>
+│   ├── 📄 user.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│<br>
+├── 📂 static/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Archivos estáticos (imágenes, CSS, JS)<br>
+│   ├── 📂 images/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   │   ├── 📄 graph2.png &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   │   ├── 📄 graph5.png &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│<br>
+├── 📂 templates/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Plantillas HTML para la interfaz web<br>
+│   ├── 📄 index.html &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📄 result.html &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│<br>
+├── 📂 uploads/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Archivos subidos por los usuarios<br>
+│   ├── 📄 Modelos H5, imágenes NIfTI, etc.<br>
+│<br>
+├── 📂 visualizador 3D/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Scripts para visualización en 3D<br>
+│   ├── 📄 EDA.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+│   ├── 📄 mapped_signal.png &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+
