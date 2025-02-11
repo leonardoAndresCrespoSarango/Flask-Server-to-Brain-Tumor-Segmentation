@@ -1,0 +1,59 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Tumor Prediction</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('form#uploadForm').submit(function(event) {
+                event.preventDefault(); // Evita el envío estándar del formulario
+                
+                var formData = new FormData($(this)[0]);
+                
+                $.ajax({
+                    url: '/upload',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        console.log(response); // Muestra el mensaje en la consola
+                    },
+                    error: function(error) {
+                        console.error('Error al procesar los archivos:', error);
+                    }
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Brain Tumor Prediction</h1>
+    <form id="predictForm" action="/predict" method="post">
+        <label for="name">Nombre:</label>
+        <input type="text" id="name" name="name" required><br>
+
+        <label for="age">Edad:</label>
+        <input type="number" id="age" name="age" required><br>
+
+        <label for="gender">Género:</label>
+        <input type="text" id="gender" name="gender" required><br>
+
+        <label for="id">ID del Paciente:</label>
+        <input type="text" id="id" name="id" required><br>
+
+        <label for="prediagnosis">Prediagnóstico:</label>
+        <textarea id="prediagnosis" name="prediagnosis" required></textarea><br>
+
+        <input type="submit" value="Predecir">
+    </form>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="files" multiple>
+        <input type="submit" value="Upload">
+    </form>
+</body>
+</html>
