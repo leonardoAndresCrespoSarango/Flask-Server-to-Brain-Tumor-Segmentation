@@ -20,6 +20,7 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.layers import Conv3DTranspose
 from tensorflow.keras.models import load_model
 
+from DataBase import get_db_connection
 
 # Configuración del Blueprint para manejar rutas relacionadas con la deteccion
 detectionBratsAI = Blueprint('detectionBratsAI', __name__)
@@ -30,64 +31,82 @@ def detect_ia():
     #     return jsonify({"message": "Usuario no autenticado"}), 401
     
     # user_id = session['user_id']
-    # patient_id = request.json.get('patient_id')
+    patient_id = request.json.get('patient_id')
 
-    # if not patient_id:
-    #     return jsonify({'message': 'Patient ID is missing'}), 400
+    if not patient_id:
+        return jsonify({'message': 'Patient ID is missing'}), 400
     
-    return jsonify({"message": "endpoint para deteccion clasificacion funcionando"}), 200
     
+    
+    
+    ## realizar la clasificacion
+    model = cargar_modelo_clasificacion()
 
-# funciones para realizar la clasificacion 
+    # Ruta del archivo HDF5
+   
+    h5_clasification_file = f"processed_files/{patient_id}_to_classify.h5"
+
+    print(f"clasificando  con pacient {patient_id}")
+    # Cargar el archivo
+    with h5py.File(h5_clasification_file, 'r') as hf:
+        h5_classification = np.array(hf['images'])  
+
+    h5_classification = np.expand_dims(h5_classification, axis=0)
+    # Imprimir dimensiones
+    print("Dimensiones de h5_classification:", h5_classification.shape)
+
+    # Realizar la predicción
+    pred = model.predict(h5_classification)
+    prob = pred[0][0]
+    
+     
+    print(f"Predicción de clasificación: {prob:.2f}")
+
+    # guardar en base de datos
+    save_classification(round(float(prob), 2), patient_id)
+
+
+    return jsonify({'message': round(float(prob), 2)})
+        
+
+
 
 # funcion que carga el modelo 
 def cargar_modelo_clasificacion():
     classification_model_path = "model_classification/classification_brats_model_cnn.h5"
-    # dimesiones que acepta el modelo
-    expected_shape = (128, 128, 128)
+    
     classification_model = load_model(classification_model_path)
 
-    patient_files = [os.path.join()]
+    return classification_model
 
 
-# carga desde la base de datos el path de las modalidades
-def get_patient_files():
-    pass
 
-def realizar_clasificacion():
-    pass
+# metodo para guardar la prediccion/clasificacion en la base de datos
 
+def save_classification(prediccion, patient_id):
+    try:
+        # Convertir el resultado de la predicción a booleano (1 -> True, 0 -> False)
+        cancer_prediction = bool(round(float(prediccion)))  # Redondea para garantizar valores 0 o 1
 
-def load_nifti(file_path):
-    return nib.load(file_path).get_fdata()
+        # Conectar a la base de datos
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
+        # Actualizar la tabla 'diagnostics' con la predicción
+        cursor.execute("""
+            UPDATE diagnostics
+            SET cancer_prediction = %s
+            WHERE patient_id = %s;
+        """, (cancer_prediction, patient_id))
 
-# Obtener nombres de archivos de modalidades, los paths de la modalidades se guardan en 
-# la base de datos
-def get_modalities(patient_files):
-    modalities = {}
-    for file in patient_files:
-        file_lower = file.lower()
-        if 't1' in file_lower and 't1c' not in file_lower:
-            modalities['T1'] = file
-        elif 't1c' in file_lower:
-            modalities['T1c'] = file
-        elif 't2w' in file_lower:
-            modalities['T2W'] = file
-        elif 't2f' in file_lower:
-            modalities['T2F'] = file
-    return modalities
+        # Confirmar la transacción
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        print(f"Predicción guardada en la base de datos para el paciente {patient_id}: {cancer_prediction}")
 
-
-# Normalizar las imágenes con MinMaxScaler
-def normalize(image):
-    scaler = MinMaxScaler()
-    return scaler.fit_transform(image.reshape(-1, image.shape[-1])).reshape(image.shape)
-
-
-# Guardar imágenes en formato HDF5
-def save_h5(filename, data):
-    with h5py.File(filename, 'w') as hf:
-        hf.create_dataset('image', data=data)
+    except Exception as e:
+        print(f"Error al guardar la predicción en la base de datos: {e}")
 
 

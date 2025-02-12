@@ -22,6 +22,9 @@ def generate_medical_report(patient_id, patient_history, cancer_status, descript
         doc.append(f'Diagnóstico Presuntivo: {cancer_status.capitalize()}\n')
         doc.append(f'Observación del Médico:\n{description}\n')
 
+    # Diagnostico Generado por IA
+    
+
     # Fechas relevantes
     with doc.create(Section('Tiempos del Diagnóstico')):
         doc.append(f'Hora de creación: {created_at.strftime("%Y-%m-%d %H:%M:%S")}\n')
