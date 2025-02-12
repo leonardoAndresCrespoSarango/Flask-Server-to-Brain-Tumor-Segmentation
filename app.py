@@ -5,6 +5,11 @@ from Artificial_Intelligence_Brats.AI_BraTs_Function_predict import predictionBr
 from Artificial_Intelligence_Brats.AI_BraTs_Function_report import report
 from Artificial_Intelligence_Brats.AI_BraTs_Function_result import resultVideo
 from Artificial_Intelligence_Brats.AI_BraTs_Function_upload_N_ProcessFile import upload
+
+from Artificial_Intelligence_Brats.AI_BraTs_Function_detection_model.detection import detectionBratsAI
+
+from uploads.clean import clean_uploads_folder
+
 from DataBase import create_tables
 from UNET import UNet
 from diagnostic import diagnostic, diagnostic_patient
@@ -31,6 +36,9 @@ sys.stdout.reconfigure(encoding='utf-8')
 # llama a la Base de datos para su creacion
 create_tables()
 
+
+# limpia archivos de la carpeta uploads (opcional)
+clean_uploads_folder()
 
 # Registro de blueprints (rutas organizadas en módulos)
 app.register_blueprint(routes)
@@ -80,6 +88,9 @@ app.register_blueprint(upload)
 app.register_blueprint(predictionBratsAI)
 app.register_blueprint(report)
 app.register_blueprint(diagnostic_patient)
+
+# deteccion con ia modelo de clasificacion
+app.register_blueprint(detectionBratsAI)
 
 # Iniciar la aplicación Flask
 if __name__ == "__main__":

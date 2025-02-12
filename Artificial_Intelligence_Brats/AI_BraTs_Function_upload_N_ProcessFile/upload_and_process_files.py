@@ -62,24 +62,33 @@ def upload_and_process_files():
     t1ce_path = os.path.join(mainPath, '*t1c.nii.gz')
     flair_path = os.path.join(mainPath, '*t2f.nii.gz')
 
+    # se agrega el path de la modalidad t1 (t1n) para usar en el modelo de clasificacion
+    t1_path = os.path.join(mainPath, '*t1n.nii.gz')
+
     # Mostrar los paths de búsqueda
     print(f"Buscando archivos T2 en: {t2_path}")
     print(f"Buscando archivos T1CE en: {t1ce_path}")
     print(f"Buscando archivos FLAIR en: {flair_path}")
 
+    print(f"Buscando archivos T1 en: {t1_path}")
+
+
+
     # Obtener la lista de archivos que coinciden con las búsquedas
     t2_list = sorted(glob.glob(t2_path))
     t1ce_list = sorted(glob.glob(t1ce_path))
     flair_list = sorted(glob.glob(flair_path))
+    t1_list = sorted(glob.glob(t1_path))
 
     # Imprimir las listas de archivos encontrados
     print(f"Archivos T2 encontrados: {t2_list}")
     print(f"Archivos T1CE encontrados: {t1ce_list}")
     print(f"Archivos FLAIR encontrados: {flair_list}")
+    print(f"Archivos T1 encontrados: {t1_list}")
 
 
     # Verificar si alguno de los archivos necesarios está ausente
-    if len(t1ce_list) == 0 or len(t2_list) == 0 or len(flair_list) == 0:
+    if len(t1ce_list) == 0 or len(t2_list) == 0 or len(flair_list) == 0  or len(t1_list) == 0:
         print("Error: Required files are missing")
         return jsonify({'message': 'Error: Required files are missing'}), 400
 
@@ -93,12 +102,14 @@ def upload_and_process_files():
         UPDATE patients
         SET t1ce_path = %s,
             t2_path = %s,
-            flair_path = %s
+            flair_path = %s,
+            t1_path = %s           
         WHERE patient_id = %s AND user_id = %s;
         """, (
             t1ce_list[0] if t1ce_list else None,
             t2_list[0] if t2_list else None,
             flair_list[0] if flair_list else None,
+            t1_list[0] if t1_list else None,
             patient_id,
             user_id
         ))
@@ -122,9 +133,16 @@ def upload_and_process_files():
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
+    # se crean dos archivos .h5, uno para la segemntacion con tres modalidades (t1ce (t1c), t2w (t2), t2f (flair))
+    # el otro archivo .h5 es para el modelo de clasificacion el cual usa las cuantro modalidades 
+
     h5_filename = os.path.join(output_path, f'{patient_id}.h5')
 
+    h5_classification_filename = os.path.join(output_path, f'{patient_id}_to_classify.h5')
+
     images = []
+    
+
     for img in range(len(t1ce_list)):
         print("Now preparing image number: ", img)
 
@@ -146,6 +164,9 @@ def upload_and_process_files():
         # Redimensionar la imagen combinada a la forma objetivo
         temp_combined_images_resized = resize(temp_combined_images, target_shape, mode='constant', anti_aliasing=True)
 
+        
+
+
         try:
             with h5py.File(h5_filename, 'w') as hf:
                 hf.create_dataset('images', data=temp_combined_images_resized, compression='gzip')
@@ -153,14 +174,35 @@ def upload_and_process_files():
         except Exception as e:
             print(f"Error al guardar el archivo HDF5: {e}")
             return jsonify({'message': 'Error al guardar el archivo HDF5'}), 500
+        
+        if len(t1_list) > 0:
+            # normalizar la modalidad t1 para el modelo de clasificacion
+            temp_image_t1 = nib.load(t1_list[img]).get_fdata()
+            temp_image_t1 = scaler.fit_transform(temp_image_t1.reshape(-1, temp_image_t1.shape[-1])).reshape(temp_image_t1.shape)
+
+            # Combinar las 4 modalidades
+            temp_combined_images_4mod = np.stack([temp_image_t1, temp_image_t1ce, temp_image_t2, temp_image_flair], axis=3)
+
+            # Redimensionar
+            temp_combined_images_4mod_resized = resize(temp_combined_images_4mod, target_shape, mode='constant', anti_aliasing=True)
+
+            try:
+                with h5py.File(h5_classification_filename, 'w') as hf:
+                    hf.create_dataset('images', data=temp_combined_images_4mod_resized, compression='gzip')
+                print(f"Imágenes guardadas (4mod clasificacion) para el paciente {patient_id} como HDF5")
+            except Exception as e:
+                print(f"Error al guardar el archivo HDF5: {e}")
+                return jsonify({'message': 'Error al guardar el archivo HDF5'}), 500
 
     # Verificar si el archivo HDF5 fue creado correctamente
-    if os.path.exists(h5_filename):
-        print(f"Archivo HDF5 {h5_filename} creado exitosamente.")
+    if os.path.exists(h5_filename) or os.path.exists(h5_classification_filename):
+        print(f"Archivos HDF5 {h5_filename} y {h5_classification_filename} creados exitosamente.")
         return jsonify({'message': 'Archivos cargados y procesados exitosamente. Las imágenes han sido guardadas como HDF5.'})
     else:
-        print(f"Error: El archivo HDF5 {h5_filename} no fue creado.")
+        print(f"Error: Los archivo HDF5 {h5_filename} y/o {h5_classification_filename} no fue creados.")
         return jsonify({'message': f'Error: El archivo HDF5 {h5_filename} no fue creado.'}), 500
+    
+  
 
 
 

@@ -4,11 +4,16 @@ from psycopg2.extras import RealDictCursor
 # Función para obtener la conexión a la base de datos
 def get_db_connection():
     return psycopg2.connect(
+        # dbname='postgres',
+        # user='postgres.ldsihxoskpzlzdprmvmq',
+        # password='VLNVddyd2002',
+        # host='aws-0-us-east-1.pooler.supabase.com',
+        # port='6543'
         dbname='postgres',
-        user='postgres.ldsihxoskpzlzdprmvmq',
-        password='VLNVddyd2002',
-        host='aws-0-us-east-1.pooler.supabase.com',
-        port='6543'
+        user='postgres',
+        password='admin123',
+        host='localhost',
+        port='5432'
     )
 
 # Función para inicializar las tablas
@@ -145,6 +150,14 @@ def create_tables():
                 WHERE table_name = 'diagnostics' AND column_name = 'cancer_status'
             ) THEN
                 ALTER TABLE diagnostics ADD COLUMN cancer_status cancer_status DEFAULT 'diagnostico incierto';
+            END IF;
+            -- Se agrega columna cancer_prediction 
+            IF NOT EXISTS (
+                SELECT 1 
+                FROM information_schema.columns 
+                WHERE table_name = 'diagnostics' AND column_name = 'cancer_prediction'
+            ) THEN
+                ALTER TABLE diagnostics ADD COLUMN cancer_prediction BOOLEAN;
             END IF;
         END
         $$;
@@ -287,6 +300,13 @@ def create_tables():
                 WHERE table_name = 'patients' AND column_name = 'graph_segmentation_path'
             ) THEN
                 ALTER TABLE patients ADD COLUMN graph_segmentation_path TEXT;
+            END IF;
+            -- se agrega campo t1_path para el modelo de clasificacion
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'patients' AND column_name = 't1_path'
+            ) THEN
+                ALTER TABLE patients ADD COLUMN t1_path TEXT;
             END IF;
         END
         $$;
