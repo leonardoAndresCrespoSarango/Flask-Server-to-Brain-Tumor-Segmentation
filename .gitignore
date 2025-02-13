@@ -5,3 +5,4 @@ uploads/*.h5
 uploads/*.nii.gz
 reportes/*.pdf
 processed_files/*.h5
+static/*.html
