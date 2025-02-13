@@ -27,11 +27,21 @@ detectionBratsAI = Blueprint('detectionBratsAI', __name__)
 
 @detectionBratsAI.route('/detection-ai', methods=['POST'])
 def detect_ia():
-    if 'user_id' not in session:
-        return jsonify({"message": "Usuario no autenticado"}), 401
+    # if 'user_id' not in session:
+    #     return jsonify({"message": "Usuario no autenticado"}), 401
     
-    user_id = session['user_id']
-    patient_id = request.json.get('patient_id')
+    # user_id = session['user_id']
+    # patient_id = request.json.get('patient_id')
+
+    print(f'sesion {session}')
+    
+    data = request.get_json()
+
+    # patient_id = request.form['patient_id']
+    # user_id = session.get('user_id') 
+
+    patient_id = data.get('patient_id')
+    user_id = session.get('user_id')
 
     if not patient_id:
         return jsonify({'message': 'Patient ID is missing'}), 400
@@ -68,6 +78,49 @@ def detect_ia():
 
     return jsonify({'message': round(float(prob), 2)})
         
+
+# Asegúrate de importar la conexión a PostgreSQL
+
+@detectionBratsAI.route('/get-diagnosticos', methods=['GET'])
+def get_diagnosticos():
+    """Obtiene el diagnóstico de un paciente específico desde PostgreSQL."""
+    
+    # Obtener el patient_id de la solicitud GET
+    patient_id = request.args.get('patient_id')
+
+    if not patient_id:
+        return jsonify({'message': 'Falta el patient_id en la solicitud'}), 400
+
+    try:
+        # Conectar a la base de datos
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Ejecutar la consulta SQL en PostgreSQL
+        cursor.execute("""
+            SELECT cancer_status, cancer_prediction 
+            FROM diagnostics 
+            WHERE patient_id = %s
+        """, (patient_id,))
+
+        # Obtener el resultado
+        result = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        # Si no hay datos, devolver valores nulos
+        if not result:
+            diagnostico = {"cancer_status": None, "cancer_prediction": None}
+        else:
+            diagnostico = {"cancer_status": result[0], "cancer_prediction": result[1]}
+
+        return jsonify(diagnostico)
+
+    except Exception as e:
+        print(f"Error al obtener diagnóstico: {e}")
+        return jsonify({'message': 'Error en el servidor'}), 500
+
 
 
 
