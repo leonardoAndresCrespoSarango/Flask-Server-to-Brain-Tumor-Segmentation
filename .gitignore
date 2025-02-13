@@ -2,4 +2,6 @@
 *.pyc
 brats-venv/
 uploads/*.h5
+uploads/*.nii.gz
+reportes/*.pdf
 processed_files/*.h5
