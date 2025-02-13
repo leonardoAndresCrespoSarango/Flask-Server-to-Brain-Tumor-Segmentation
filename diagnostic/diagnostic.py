@@ -140,6 +140,7 @@ def add_diagnostic():
 # Ruta para obtener los diagnósticos de un paciente
 @diagnostic.route('/diagnostics/<patient_id>', methods=['GET'])
 def get_diagnostics(patient_id):
+    print(">> SE USA EL ENDPOINT diagnostics/patient_id")
     # Verificar si el usuario está autenticado
     if 'user_id' not in session:
         return jsonify({"error": "Usuario no autenticado"}), 401

@@ -27,10 +27,10 @@ detectionBratsAI = Blueprint('detectionBratsAI', __name__)
 
 @detectionBratsAI.route('/detection-ai', methods=['POST'])
 def detect_ia():
-    # if 'user_id' not in session:
-    #     return jsonify({"message": "Usuario no autenticado"}), 401
+    if 'user_id' not in session:
+        return jsonify({"message": "Usuario no autenticado"}), 401
     
-    # user_id = session['user_id']
+    user_id = session['user_id']
     patient_id = request.json.get('patient_id')
 
     if not patient_id:

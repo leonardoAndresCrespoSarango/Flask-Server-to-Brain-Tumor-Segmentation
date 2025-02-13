@@ -1,3 +1,5 @@
 .idea/
 *.pyc
 brats-venv/
+uploads/*.h5
+processed_files/*.h5

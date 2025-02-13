@@ -38,7 +38,7 @@ create_tables()
 
 
 # limpia archivos de la carpeta uploads (opcional)
-clean_uploads_folder()
+#clean_uploads_folder()
 
 # Registro de blueprints (rutas organizadas en módulos)
 app.register_blueprint(routes)

@@ -1,7 +1,15 @@
 from pylatex import Document, Section, Command
 from pylatex.utils import NoEscape
 
-def generate_medical_report(patient_id, patient_history, cancer_status, description, doctor_name, doctor_username, created_at, updated_at):
+def generate_medical_report(patient_id, 
+                            patient_history, 
+                            cancer_status, 
+                            description, 
+                            doctor_name, 
+                            doctor_username, 
+                            created_at, 
+                            updated_at,
+                            ):
     # Crear documento LaTeX
     doc = Document()
     # Configurar idioma español para el documento
@@ -23,7 +31,12 @@ def generate_medical_report(patient_id, patient_history, cancer_status, descript
         doc.append(f'Observación del Médico:\n{description}\n')
 
     # Diagnostico Generado por IA
-    
+    # cargar prediccion generada por IA
+    # with doc.create(Section('Diagnóstico generado con inteligencia artificial (IA)')):
+    #     if cancer_prediction_ia:
+    #         doc.append(f'Cancer detectado')
+    #     else:
+    #         doc.append(f'No se detecta cancer')
 
     # Fechas relevantes
     with doc.create(Section('Tiempos del Diagnóstico')):
