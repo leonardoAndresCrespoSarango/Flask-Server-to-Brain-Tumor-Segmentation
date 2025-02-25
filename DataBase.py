@@ -159,6 +159,14 @@ def create_tables():
             ) THEN
                 ALTER TABLE diagnostics ADD COLUMN cancer_prediction BOOLEAN;
             END IF;
+            -- Se agrega columna is_generated_by_ia 
+            IF NOT EXISTS (
+                SELECT 1 
+                FROM information_schema.columns 
+                WHERE table_name = 'diagnostics' AND column_name = 'is_generated_by_ia'
+            ) THEN
+                ALTER TABLE diagnostics ADD COLUMN is_generated_by_ia BOOLEAN DEFAULT FALSE;
+            END IF;
         END
         $$;
     """)

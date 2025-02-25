@@ -79,8 +79,7 @@ def detect_ia():
     return jsonify({'message': round(float(prob), 2)})
         
 
-# Asegúrate de importar la conexión a PostgreSQL
-
+# no se usa por ahora
 @detectionBratsAI.route('/get-diagnosticos', methods=['GET'])
 def get_diagnosticos():
     """Obtiene el diagnóstico de un paciente específico desde PostgreSQL."""
@@ -145,12 +144,14 @@ def save_classification(prediccion, patient_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Actualizar la tabla 'diagnostics' con la predicción
+        # Actualizar la tabla 'diagnostics' con la prediccion
+        # se agrega el campo True para indicar que se realizo la prediccion con IA al front
         cursor.execute("""
             UPDATE diagnostics
-            SET cancer_prediction = %s
+            SET cancer_prediction = %s,
+            is_generated_by_ia = %s         
             WHERE patient_id = %s;
-        """, (cancer_prediction, patient_id))
+        """, (cancer_prediction, True, patient_id))
 
         # Confirmar la transacción
         conn.commit()
