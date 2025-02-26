@@ -38,16 +38,23 @@ def upload_and_process_files():
     # Verificar si el usuario está autenticado
     if not user_id:
         return jsonify({'message': 'Usuario no autenticado'}), 401
+<<<<<<< HEAD
 
     print(f"Files received: {[file.filename for file in upload_files]}")
     print(f"Patient ID received: {patient_id}")
     print(f"User ID: {user_id}")
 
     # Verificar o crear la carpeta donde se guardarán los archivos cargados
+=======
+    
+    print(f"Patient ID: {patient_id}, User ID: {user_id}")
+
+>>>>>>> diegotesis
     mainPath = current_app.config['UPLOAD_FOLDER']
     if not os.path.exists(mainPath):
         os.makedirs(mainPath)
 
+<<<<<<< HEAD
     # Guardar los archivos cargados en la carpeta de destino
     for file in upload_files:
         filename = secure_filename(file.filename)
@@ -119,10 +126,86 @@ def upload_and_process_files():
     output_path = 'processed_files/'
 
     # Verificar si la carpeta de salida existe, y si no, crearla
+=======
+    # Guardar archivos con prefijo patient_id y verificar que sean del paciente correcto
+    saved_files = []
+    for file in upload_files:
+        filename = secure_filename(file.filename)
+        if patient_id not in filename:
+            filename = f"{patient_id}_{filename}"  # Asegura que el nombre contiene el patient_id
+        file_path = os.path.join(mainPath, filename)
+        file.save(file_path)
+        saved_files.append(file_path)
+        print(f"Archivo guardado: {file_path}")
+
+    # Conectar a la base de datos para verificar si ya existen los paths
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT t1ce_path, t2_path, flair_path, t1_path FROM patients WHERE patient_id = %s AND user_id = %s;", 
+                       (patient_id, user_id))
+        existing_paths = cursor.fetchone()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error al verificar en la base de datos: {e}")
+        return jsonify({'message': 'Error en la base de datos.'}), 500
+
+    # Si ya están todos los archivos en la BD, evitar reprocesarlos
+    if all(existing_paths):
+        print(f"Los archivos para el paciente {patient_id} ya están subidos y registrados en la base de datos.")
+        return jsonify({'message': 'Los archivos ya existen en la base de datos. No se realizó conversión a HDF5.'}), 200
+
+    # Función para obtener el archivo más reciente de un paciente
+    def get_latest_patient_file(pattern):
+        files = glob.glob(pattern)
+        patient_files = [f for f in files if patient_id in os.path.basename(f)]
+        if patient_files:
+            return max(patient_files, key=os.path.getmtime)  # Obtiene el archivo más reciente con patient_id
+        return None
+
+    # Buscar archivos asegurando que son del paciente correcto
+    t2_file = get_latest_patient_file(os.path.join(mainPath, f"*t2W.nii.gz"))
+    t1ce_file = get_latest_patient_file(os.path.join(mainPath, f"*t1c.nii.gz"))
+    flair_file = get_latest_patient_file(os.path.join(mainPath, f"*t2f.nii.gz"))
+    t1_file = get_latest_patient_file(os.path.join(mainPath, f"*t1n.nii.gz"))
+
+    if not (t1ce_file and t2_file and flair_file and t1_file):
+        return jsonify({'message': 'Error: Faltan archivos de modalidades.'}), 400
+
+    print(f"T2 seleccionado: {t2_file}")
+    print(f"T1CE seleccionado: {t1ce_file}")
+    print(f"FLAIR seleccionado: {flair_file}")
+    print(f"T1 seleccionado: {t1_file}")
+
+    # Guardar los nuevos paths en la base de datos
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE patients
+            SET t1ce_path = %s, t2_path = %s, flair_path = %s, t1_path = %s
+            WHERE patient_id = %s AND user_id = %s;
+        """, (t1ce_file, t2_file, flair_file, t1_file, patient_id, user_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print(f"Paths guardados en BD para el paciente {patient_id}")
+    except Exception as e:
+        print(f"Error al actualizar BD: {e}")
+        return jsonify({'message': 'Error al actualizar BD.'}), 500
+
+    # Procesamiento y guardado en .h5
+    scaler = MinMaxScaler()
+    target_shape = (128, 128, 128)
+    output_path = 'processed_files/'
+
+>>>>>>> diegotesis
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
     h5_filename = os.path.join(output_path, f'{patient_id}.h5')
+<<<<<<< HEAD
 
     images = []
     for img in range(len(t1ce_list)):
@@ -162,6 +245,94 @@ def upload_and_process_files():
         print(f"Error: El archivo HDF5 {h5_filename} no fue creado.")
         return jsonify({'message': f'Error: El archivo HDF5 {h5_filename} no fue creado.'}), 500
 
+=======
+    h5_classification_filename = os.path.join(output_path, f'{patient_id}_to_classify.h5')
+
+    print(f"Procesando imágenes para {patient_id}...")
+
+    try:
+        # Cargar y normalizar imágenes
+        temp_image_t2 = nib.load(t2_file).get_fdata()
+        temp_image_t1ce = nib.load(t1ce_file).get_fdata()
+        temp_image_flair = nib.load(flair_file).get_fdata()
+        temp_image_t1 = nib.load(t1_file).get_fdata()
+
+        temp_image_t2 = scaler.fit_transform(temp_image_t2.reshape(-1, temp_image_t2.shape[-1])).reshape(temp_image_t2.shape)
+        temp_image_t1ce = scaler.fit_transform(temp_image_t1ce.reshape(-1, temp_image_t1ce.shape[-1])).reshape(temp_image_t1ce.shape)
+        temp_image_flair = scaler.fit_transform(temp_image_flair.reshape(-1, temp_image_flair.shape[-1])).reshape(temp_image_flair.shape)
+        temp_image_t1 = scaler.fit_transform(temp_image_t1.reshape(-1, temp_image_t1.shape[-1])).reshape(temp_image_t1.shape)
+
+        # Combinar imágenes para segmentación
+        temp_combined_images = np.stack([temp_image_t1ce, temp_image_t2, temp_image_flair], axis=3)
+        temp_combined_images_resized = resize(temp_combined_images, target_shape, mode='constant', anti_aliasing=True)
+
+        # Guardar en HDF5 para segmentación
+        with h5py.File(h5_filename, 'w') as hf:
+            hf.create_dataset('images', data=temp_combined_images_resized, compression='gzip')
+        print(f"Guardado HDF5 {h5_filename}")
+
+        # Combinar imágenes para clasificación
+        temp_combined_images_4mod = np.stack([temp_image_t1, temp_image_t1ce, temp_image_t2, temp_image_flair], axis=3)
+        temp_combined_images_4mod_resized = resize(temp_combined_images_4mod, target_shape, mode='constant', anti_aliasing=True)
+
+        # Guardar en HDF5 para clasificación
+        with h5py.File(h5_classification_filename, 'w') as hf:
+            hf.create_dataset('images', data=temp_combined_images_4mod_resized, compression='gzip')
+        print(f"Guardado HDF5 Clasificación {h5_classification_filename}")
+
+    except Exception as e:
+        print(f"Error al procesar imágenes: {e}")
+        return jsonify({'message': 'Error al procesar imágenes'}), 500
+
+    print(f"Procesamiento completado para {patient_id}.")
+    return jsonify({'message': 'Archivos cargados y procesados exitosamente en HDF5.'})
+
+
+# endpoint para verificar que los archivos nifti del paciente ya estan
+
+@upload.route('/check-patient-files', methods=['POST'])
+def check_patient_files():
+    """ Verifica si las modalidades ya están en la base de datos para un paciente """
+    print(f'sesion {session}')
+    
+    data = request.get_json()
+
+    # patient_id = request.form['patient_id']
+    # user_id = session.get('user_id') 
+
+    patient_id = data.get('patient_id')
+    user_id = session.get('user_id')
+
+    if not user_id:
+        return jsonify({'message': 'Usuario no autenticado'}), 401
+
+    if not patient_id:
+        return jsonify({'message': 'Falta el patient_id'}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT t1ce_path, t2_path, flair_path, t1_path
+            FROM patients
+            WHERE patient_id = %s AND user_id = %s;
+        """, (patient_id, user_id))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error al verificar archivos en la base de datos: {e}")
+        return jsonify({'message': 'Error en la base de datos'}), 500
+
+    # Verificar si todas las modalidades tienen un path registrado
+    if result and all(result): 
+        print("devuelve true") 
+        return jsonify({'files_uploaded': True})  # Si todas las modalidades están, responde True
+    else:
+        print("devuelve FALSE")
+        return jsonify({'files_uploaded': False})  # Si falta alguna modalidad, responde False
+        
+>>>>>>> diegotesis
 
 
 # Ruta para cargar y procesar archivos de segmentación

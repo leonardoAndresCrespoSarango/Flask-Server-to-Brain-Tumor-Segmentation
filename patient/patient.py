@@ -63,7 +63,9 @@ def get_patients():
                        p.numero_historia_clinica,
                        p.survey_completed,
                        d.is_generated,
+                       d.is_generated_by_ia,
                        d.cancer_status,
+                       d.cancer_prediction,
                        d.report_path
                    FROM patients p
                    LEFT JOIN diagnostics d 
@@ -80,6 +82,12 @@ def get_patients():
     except Exception as e:
         print("Error al recuperar los pacientes:", str(e))
         return jsonify({"error": "Error al recuperar los pacientes. Consulta los registros del servidor para más detalles."}), 500
+
+
+## ENDPOINT para obetener el estado del prediagnostico por IA
+
+
+
 
 #ENDPOINT ELIMINAR PACIENTE POR ID
 @patient.route('/delete-patient/<string:patient_id>', methods=['DELETE'])

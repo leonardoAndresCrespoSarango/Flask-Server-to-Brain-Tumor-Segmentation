@@ -101,6 +101,18 @@ def add_diagnostic():
         )
         patient_info = cursor.fetchone()
 
+        # # enviar el estado del diagnostico por IA
+        # ## recuperar con sql
+        # cursor.execute(
+        #     '''SELECT d.cancer_prediction from patients p LEFT JOIN diagnostics d ON p.patient_id
+        #       WHERE p.patient_id = %s  
+        #       LIMIT 1;
+        #        ''', (diagnostic_info['patient_id'])
+        # )
+
+        # cancer_prediction_ia= cursor.fetchone()
+        # print("RESULTADO OBTENIDO PARA EL REPORTE: ", cancer_prediction_ia)
+
         # Generar el reporte en LaTeX
         report_path = generate_medical_report(
             patient_id=diagnostic_info['patient_id'],
@@ -110,7 +122,8 @@ def add_diagnostic():
             doctor_name=user_info[0],
             doctor_username=user_info[1],
             created_at=created_at.astimezone(pytz.timezone('America/Guayaquil')),
-            updated_at=updated_at
+            updated_at=updated_at,
+            #cancer_prediction_ia = cancer_prediction_ia
         )
 
         # Actualizar la tabla `diagnostics` con la ruta del reporte
@@ -140,6 +153,7 @@ def add_diagnostic():
 # Ruta para obtener los diagnósticos de un paciente
 @diagnostic.route('/diagnostics/<patient_id>', methods=['GET'])
 def get_diagnostics(patient_id):
+    print(">> SE USA EL ENDPOINT diagnostics/patient_id")
     # Verificar si el usuario está autenticado
     if 'user_id' not in session:
         return jsonify({"error": "Usuario no autenticado"}), 401
