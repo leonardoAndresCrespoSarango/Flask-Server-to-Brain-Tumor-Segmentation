@@ -38,95 +38,13 @@ def upload_and_process_files():
     # Verificar si el usuario está autenticado
     if not user_id:
         return jsonify({'message': 'Usuario no autenticado'}), 401
-<<<<<<< HEAD
-
-    print(f"Files received: {[file.filename for file in upload_files]}")
-    print(f"Patient ID received: {patient_id}")
-    print(f"User ID: {user_id}")
-
-    # Verificar o crear la carpeta donde se guardarán los archivos cargados
-=======
     
     print(f"Patient ID: {patient_id}, User ID: {user_id}")
 
->>>>>>> diegotesis
     mainPath = current_app.config['UPLOAD_FOLDER']
     if not os.path.exists(mainPath):
         os.makedirs(mainPath)
 
-<<<<<<< HEAD
-    # Guardar los archivos cargados en la carpeta de destino
-    for file in upload_files:
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(mainPath, filename))
-        print(f"Archivo guardado: {filename}")
-
-    # Verificar el contenido del directorio uploads
-    print(f"Contenido de {mainPath}: {os.listdir(mainPath)}")
-
-    # Buscar archivos de diferentes modalidades (T2, T1CE, FLAIR) en la carpeta cargada
-    t2_path = os.path.join(mainPath, '*t2W.nii.gz')
-    t1ce_path = os.path.join(mainPath, '*t1c.nii.gz')
-    flair_path = os.path.join(mainPath, '*t2f.nii.gz')
-
-    # Mostrar los paths de búsqueda
-    print(f"Buscando archivos T2 en: {t2_path}")
-    print(f"Buscando archivos T1CE en: {t1ce_path}")
-    print(f"Buscando archivos FLAIR en: {flair_path}")
-
-    # Obtener la lista de archivos que coinciden con las búsquedas
-    t2_list = sorted(glob.glob(t2_path))
-    t1ce_list = sorted(glob.glob(t1ce_path))
-    flair_list = sorted(glob.glob(flair_path))
-
-    # Imprimir las listas de archivos encontrados
-    print(f"Archivos T2 encontrados: {t2_list}")
-    print(f"Archivos T1CE encontrados: {t1ce_list}")
-    print(f"Archivos FLAIR encontrados: {flair_list}")
-
-
-    # Verificar si alguno de los archivos necesarios está ausente
-    if len(t1ce_list) == 0 or len(t2_list) == 0 or len(flair_list) == 0:
-        print("Error: Required files are missing")
-        return jsonify({'message': 'Error: Required files are missing'}), 400
-
-    try:
-        # Conectar a la base de datos para actualizar los paths de las modalidades
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Actualizar los paths de las modalidades en la base de datos
-        cursor.execute("""
-        UPDATE patients
-        SET t1ce_path = %s,
-            t2_path = %s,
-            flair_path = %s
-        WHERE patient_id = %s AND user_id = %s;
-        """, (
-            t1ce_list[0] if t1ce_list else None,
-            t2_list[0] if t2_list else None,
-            flair_list[0] if flair_list else None,
-            patient_id,
-            user_id
-        ))
-
-        # Confirmar la transacción
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print(f"Paths actualizados correctamente para el paciente {patient_id}")
-
-    except Exception as e:
-        print(f"Error al guardar los paths en la base de datos: {e}")
-        return jsonify({'message': 'Error al guardar los paths en la base de datos.'}), 500
-
-    # Procesar y guardar las imágenes
-    scaler = MinMaxScaler()
-    target_shape = (128, 128, 128)  # Dimensiones objetivo
-    output_path = 'processed_files/'
-
-    # Verificar si la carpeta de salida existe, y si no, crearla
-=======
     # Guardar archivos con prefijo patient_id y verificar que sean del paciente correcto
     saved_files = []
     for file in upload_files:
@@ -200,52 +118,10 @@ def upload_and_process_files():
     target_shape = (128, 128, 128)
     output_path = 'processed_files/'
 
->>>>>>> diegotesis
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
     h5_filename = os.path.join(output_path, f'{patient_id}.h5')
-<<<<<<< HEAD
-
-    images = []
-    for img in range(len(t1ce_list)):
-        print("Now preparing image number: ", img)
-
-        # Cargar y preprocesar cada modalidad
-        temp_image_t2 = nib.load(t2_list[img]).get_fdata()
-        temp_image_t2 = scaler.fit_transform(temp_image_t2.reshape(-1, temp_image_t2.shape[-1])).reshape(temp_image_t2.shape)
-
-        temp_image_t1ce = nib.load(t1ce_list[img]).get_fdata()
-        temp_image_t1ce = scaler.fit_transform(temp_image_t1ce.reshape(-1, temp_image_t1ce.shape[-1])).reshape(temp_image_t1ce.shape)
-
-        temp_image_flair = nib.load(flair_list[img]).get_fdata()
-        temp_image_flair = scaler.fit_transform(temp_image_flair.reshape(-1, temp_image_flair.shape[-1])).reshape(temp_image_flair.shape)
-
-
-        # Combinar las imágenes de diferentes modalidades en un solo array
-        temp_combined_images = np.stack([temp_image_t1ce, temp_image_t2, temp_image_flair], axis=3)
-
-
-        # Redimensionar la imagen combinada a la forma objetivo
-        temp_combined_images_resized = resize(temp_combined_images, target_shape, mode='constant', anti_aliasing=True)
-
-        try:
-            with h5py.File(h5_filename, 'w') as hf:
-                hf.create_dataset('images', data=temp_combined_images_resized, compression='gzip')
-            print(f"Imágenes guardadas para el paciente {patient_id} como HDF5")
-        except Exception as e:
-            print(f"Error al guardar el archivo HDF5: {e}")
-            return jsonify({'message': 'Error al guardar el archivo HDF5'}), 500
-
-    # Verificar si el archivo HDF5 fue creado correctamente
-    if os.path.exists(h5_filename):
-        print(f"Archivo HDF5 {h5_filename} creado exitosamente.")
-        return jsonify({'message': 'Archivos cargados y procesados exitosamente. Las imágenes han sido guardadas como HDF5.'})
-    else:
-        print(f"Error: El archivo HDF5 {h5_filename} no fue creado.")
-        return jsonify({'message': f'Error: El archivo HDF5 {h5_filename} no fue creado.'}), 500
-
-=======
     h5_classification_filename = os.path.join(output_path, f'{patient_id}_to_classify.h5')
 
     print(f"Procesando imágenes para {patient_id}...")
@@ -332,7 +208,6 @@ def check_patient_files():
         print("devuelve FALSE")
         return jsonify({'files_uploaded': False})  # Si falta alguna modalidad, responde False
         
->>>>>>> diegotesis
 
 
 # Ruta para cargar y procesar archivos de segmentación
