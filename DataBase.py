@@ -4,16 +4,16 @@ from psycopg2.extras import RealDictCursor
 # Función para obtener la conexión a la base de datos
 def get_db_connection():
     return psycopg2.connect(
-        # dbname='postgres',
-        # user='postgres.ldsihxoskpzlzdprmvmq',
-        # password='VLNVddyd2002',
-        # host='aws-0-us-east-1.pooler.supabase.com',
-        # port='6543'
         dbname='postgres',
-        user='postgres',
-        password='admin123',
-        host='localhost',
-        port='5432'
+        user='postgres.ldsihxoskpzlzdprmvmq',
+        password='VLNVddyd2002',
+        host='aws-0-us-east-1.pooler.supabase.com',
+        port='6543'
+        # dbname='postgres',
+        # user='postgres',
+        # password='admin123',
+        # host='localhost',
+        # port='5432'
     )
 
 # Función para inicializar las tablas
