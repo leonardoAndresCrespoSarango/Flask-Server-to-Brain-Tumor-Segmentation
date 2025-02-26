@@ -65,6 +65,7 @@ def get_patients():
                        d.is_generated,
                        d.is_generated_by_ia,
                        d.cancer_status,
+                       d.cancer_prediction,
                        d.report_path
                    FROM patients p
                    LEFT JOIN diagnostics d 
