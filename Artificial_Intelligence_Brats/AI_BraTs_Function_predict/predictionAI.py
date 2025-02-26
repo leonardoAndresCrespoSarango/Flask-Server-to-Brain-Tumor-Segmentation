@@ -44,13 +44,6 @@ from psycopg2.extras import RealDictCursor
 # Conexión a la base de datos PostgreSQL
 def get_db_connection():
     return psycopg2.connect(
-<<<<<<< HEAD
-        dbname='postgres',
-        user='postgres.txfhmfkxzcwigxhzhvmx',
-        password='VLNVddyd2002',
-        host='aws-0-us-east-1.pooler.supabase.com',
-        port='6543'
-=======
         # dbname='postgres',
         # user='postgres.txfhmfkxzcwigxhzhvmx',
         # password='VLNVddyd2002',
@@ -61,7 +54,6 @@ def get_db_connection():
         password='admin123',
         host='localhost',
         port='5432'
->>>>>>> diegotesis
     )
 
 # Ruta para realizar la predicción
